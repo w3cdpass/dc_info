@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Eye, EyeOff, Languages, Mail, Lock, KeyRound } from 'lucide-react';
-import { GithubIcon } from '../components/GithubIcon';
-import { CustomSelect } from '../components/CustomSelect';
-import { languageOptions, resolveSupportedLanguage, type SupportedLanguage } from '../i18n';
+import { Eye, EyeOff, Mail, Lock, KeyRound } from 'lucide-react';
+// import { Eye, EyeOff, Languages, Mail, Lock, KeyRound } from 'lucide-react';
+// import { GithubIcon } from '../components/GithubIcon';
+// import { CustomSelect } from '../components/CustomSelect';
+// import { languageOptions, resolveSupportedLanguage, type SupportedLanguage } from '../i18n';
+// import { resolveSupportedLanguage, type SupportedLanguage } from '../i18n';
 import { API_BASE_URL } from '../services/api';
 import { getSupabase, HARDCODED_ADMIN } from '../lib/supabase';
 import './Login.css';
@@ -13,7 +15,8 @@ interface LoginProps {
 }
 
 export function Login({ onLogin }: LoginProps) {
-  const { t, i18n } = useTranslation();
+  // const { t, i18n } = useTranslation();
+  const { t} = useTranslation();
   const [mode, setMode] = useState<'admin' | 'apikey'>('admin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,11 +25,11 @@ export function Login({ onLogin }: LoginProps) {
   const [showKey, setShowKey] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const currentLang = resolveSupportedLanguage(i18n.resolvedLanguage || i18n.language);
+  // const currentLang = resolveSupportedLanguage(i18n.resolvedLanguage || i18n.language);
 
-  const changeLanguage = (language: SupportedLanguage) => {
-    void i18n.changeLanguage(language);
-  };
+  // const changeLanguage = (language: SupportedLanguage) => {
+  //   void i18n.changeLanguage(language);
+  // };
 
   const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
