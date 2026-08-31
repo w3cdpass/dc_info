@@ -16,6 +16,7 @@
     "test:unit": "node --experimental-strip-types --test \"src/**/*.test.ts\""
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.4",
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-table": "^9.1.2",
     "i18next": "^26.3.6",

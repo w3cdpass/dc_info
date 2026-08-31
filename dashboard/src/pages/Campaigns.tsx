@@ -443,8 +443,9 @@ export function Campaigns() {
                           <button className="btn-secondary" onClick={() => handleAction(c, 'start')} title={t('campaigns.restart')}>
                             <Play size={15} /> {t('campaigns.restart')}
                           </button>
-                          <button className="btn-icon btn-danger" onClick={() => handleDelete(c)} title={t('campaigns.delete')}>
-                            <Trash2 size={15} />
+                          <button style={{backgroundColor: 'red'}} onClick={() => handleDelete(c)} title={t('campaigns.delete')}>
+                            {/* <Trash2 size={15} /> */}
+                            {t('campaigns.delete')}
                           </button>
                         </>
                       )}

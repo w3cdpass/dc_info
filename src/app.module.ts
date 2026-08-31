@@ -47,6 +47,7 @@ import { PluginsApiModule } from './modules/plugins/plugins.module';
 import { AgentToolsModule } from './core/agent-tools/agent-tools.module';
 import { IntegrationModule } from './modules/integration/integration.module';
 import { SearchModule } from './modules/search/search.module';
+import { SupabaseModule } from './modules/supabase/supabase.module';
 import { SqlitePermissionsBoot } from './database/sqlite-file-permissions';
 
 // Only import QueueModule if explicitly enabled to avoid Redis connection errors
@@ -287,6 +288,7 @@ if (dashboardServingEnabled && dashboardBuildPresent) {
     // Core modules
     HooksModule, // Global hook system for plugin integration
     PluginsModule, // Global plugin system
+    SupabaseModule, // Supabase admin DB + auth (NEXT_PUBLIC_SUPABASE_URL)
     LoggerModule,
     CacheModule,
     StorageModule,

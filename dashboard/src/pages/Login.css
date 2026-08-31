@@ -72,6 +72,54 @@
   box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.1);
 }
 
+.login-container .login-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 1.25rem;
+}
+
+.login-container .login-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-light);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.login-container .login-tab.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.login-container .input-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.login-container .input-wrapper:has(.input-icon) input {
+  padding-left: 2.5rem;
+}
+
+.login-container .login-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+}
+
 .login-container .login-form {
   text-align: left;
 }

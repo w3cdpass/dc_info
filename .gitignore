@@ -16,6 +16,7 @@ coverage/
 # Environment
 .env
 .env.local
+.env.render
 .env.development.local
 .env.test.local
 .env.production.local
