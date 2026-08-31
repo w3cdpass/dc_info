@@ -148,7 +148,7 @@ export function Login({ onLogin }: LoginProps) {
   return (
     <div className="login-container">
       <div className="login-card">
-        {/* <div className="login-logo">
+        <div className="login-logo">
           <img src="/openwa_logo.webp" alt="OpenWA" className="logo-icon" />
           <span className="version-info">
             {t('login.version', {
@@ -156,9 +156,9 @@ export function Login({ onLogin }: LoginProps) {
               date: new Date(__BUILD_TIME__).toISOString().slice(0, 10).replace(/-/g, ''),
             })}
           </span>
-        </div> */}
+        </div>
 
-        {/* <div className="login-language">
+        <div className="login-language">
           <Languages size={18} />
           <CustomSelect
             value={currentLang}
@@ -166,7 +166,7 @@ export function Login({ onLogin }: LoginProps) {
             options={languageOptions.map(opt => ({ value: opt.value, label: opt.label }))}
             ariaLabel={t('common.language')}
           />
-        </div> */}
+        </div>
 
         <div className="login-tabs">
           <button
@@ -267,15 +267,15 @@ export function Login({ onLogin }: LoginProps) {
           </form>
         )}
 
-        {/* <p className="login-help">
+        <p className="login-help">
           {t('login.help')}{' '}
           <a href="https://docs.open-wa.org" target="_blank" rel="noopener noreferrer">
             {t('login.viewDocs')}
           </a>
-        </p> */}
+        </p>
       </div>
 
-      {/* <footer className="login-footer">
+      <footer className="login-footer">
         <span>{t('login.footer')}</span>
         <a
           href="https://github.com/rmyndharis/OpenWA"
@@ -286,7 +286,7 @@ export function Login({ onLogin }: LoginProps) {
         >
           <GithubIcon size={18} />
         </a>
-      </footer> */}
+      </footer>
     </div>
   );
 }
