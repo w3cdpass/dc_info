@@ -36,19 +36,19 @@ interface LayoutProps {
 }
 
 const allNavItems = [
-  { to: '/', icon: LayoutDashboard, key: 'dashboard' as const, adminOnly: false },
-  { to: '/sessions', icon: Smartphone, key: 'sessions' as const, adminOnly: false },
-  { to: '/chats', icon: MessageSquare, key: 'chats' as const, adminOnly: false },
-  { to: '/webhooks', icon: Webhook, key: 'webhooks' as const, adminOnly: false },
-  { to: '/templates', icon: ClipboardList, key: 'templates' as const, adminOnly: false },
-  { to: '/contacts', icon: Users, key: 'contacts' as const, adminOnly: false },
-  { to: '/campaigns', icon: Workflow, key: 'campaigns' as const, adminOnly: false },
-  { to: '/api-keys', icon: Key, key: 'apiKeys' as const, adminOnly: true },
-  { to: '/message-tester', icon: Send, key: 'messageTester' as const, adminOnly: false },
+  { to: '/', icon: LayoutDashboard, key: 'dashboard' as const, adminOnly: false, demoAllowed: true },
+  { to: '/sessions', icon: Smartphone, key: 'sessions' as const, adminOnly: false, demoAllowed: false },
+  { to: '/chats', icon: MessageSquare, key: 'chats' as const, adminOnly: false, demoAllowed: false },
+  { to: '/webhooks', icon: Webhook, key: 'webhooks' as const, adminOnly: false, demoAllowed: false },
+  { to: '/templates', icon: ClipboardList, key: 'templates' as const, adminOnly: false, demoAllowed: false },
+  { to: '/contacts', icon: Users, key: 'contacts' as const, adminOnly: false, demoAllowed: false },
+  { to: '/campaigns', icon: Workflow, key: 'campaigns' as const, adminOnly: false, demoAllowed: true },
+  { to: '/api-keys', icon: Key, key: 'apiKeys' as const, adminOnly: true, demoAllowed: false },
+  { to: '/message-tester', icon: Send, key: 'messageTester' as const, adminOnly: false, demoAllowed: true },
   // Backend /infra/* is ADMIN-only; hide the nav item from non-admins (UX + defense-in-depth).
-  { to: '/infrastructure', icon: Server, key: 'infrastructure' as const, adminOnly: true },
-  { to: '/plugins', icon: Puzzle, key: 'plugins' as const, adminOnly: true },
-  { to: '/logs', icon: FileText, key: 'logs' as const, adminOnly: false },
+  { to: '/infrastructure', icon: Server, key: 'infrastructure' as const, adminOnly: true, demoAllowed: false },
+  { to: '/plugins', icon: Puzzle, key: 'plugins' as const, adminOnly: true, demoAllowed: false },
+  { to: '/logs', icon: FileText, key: 'logs' as const, adminOnly: false, demoAllowed: false },
 ];
 
 const themeIcons = { light: Sun, dark: Moon, system: Monitor };
@@ -59,7 +59,11 @@ export function Layout({ onLogout, userRole }: LayoutProps) {
   const ThemeIcon = themeIcons[theme];
   const themeLabel = t(`theme.${theme}`);
 
-  const navItems = allNavItems.filter(item => !item.adminOnly || userRole === 'admin');
+  const navItems = allNavItems.filter(item => {
+    if (userRole === 'demo') return (item as any).demoAllowed;
+    if (userRole === 'super_admin') return true;
+    return !item.adminOnly || userRole === 'admin';
+  });
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);

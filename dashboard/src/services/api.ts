@@ -162,7 +162,7 @@ export interface ApiKey {
   id: string;
   name: string;
   keyPrefix: string;
-  role: 'admin' | 'operator' | 'viewer';
+  role: 'admin' | 'operator' | 'viewer' | 'demo' | 'super_admin';
   allowedIps?: string[];
   allowedSessions?: string[];
   isActive: boolean;
@@ -170,6 +170,22 @@ export interface ApiKey {
   lastUsedAt?: string;
   usageCount: number;
   createdAt: string;
+  credits?: number | null;
+  creditsUsed?: number;
+  creditsRemaining?: number | null;
+  creditCost?: Record<string, number> | null;
+}
+
+export interface CreditTemplate {
+  id: string;
+  name: string;
+  body: string;
+  type: string;
+  creditCost: number;
+  mediaUrl?: string | null;
+  mimetype?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** The creation response: every list/detail field plus the plaintext key, shown exactly once. */
@@ -504,7 +520,37 @@ export interface OutreachSessionProgress {
   total: number;
   sent: number;
   failed: number;
+  blocked?: number;
   pending: number;
+}
+
+export interface OutreachBurstProgress {
+  sessionId: string;
+  sessionName: string;
+  burstIndex: number;
+  burstSize: number;
+  batchId: string | null;
+  status: 'pending' | 'running' | 'cooldown' | 'completed' | 'failed';
+  sent: number;
+  failed: number;
+  blocked: number;
+  pending: number;
+  contacts: OutreachContactRef[];
+  results: Array<{ phone: string; name?: string; chatId: string; status: string; errorCode?: string; errorMessage?: string; sentAt?: string }>;
+  startTime: string | null;
+  endTime: string | null;
+  estimatedStart: string | null;
+  estimatedEnd: string | null;
+  cooldownMs: number | null;
+  warmupMs: number | null;
+}
+
+export interface OutreachGlobalTiming {
+  startedAt: string | null;
+  estimatedFinish: string | null;
+  remainingBursts: number;
+  totalBursts: number;
+  completedBursts: number;
 }
 
 export interface OutreachCampaign {
@@ -515,6 +561,8 @@ export interface OutreachCampaign {
   contactCount: number;
   sessionCount: number;
   sessionProgress?: OutreachSessionProgress[] | null;
+  burstProgress?: OutreachBurstProgress[] | null;
+  globalTiming?: OutreachGlobalTiming | null;
   distribution?: OutreachSessionAllocation[] | null;
   strategy?: OutreachStrategy | null;
   sessions?: OutreachSessionRef[] | null;
@@ -558,6 +606,10 @@ export interface OutreachCampaignExecution {
   campaignName: string;
   status: OutreachStatus;
   sessionProgress?: OutreachSessionProgress[] | null;
+  burstProgress?: OutreachBurstProgress[] | null;
+  burstReport?: OutreachBurstProgress[] | null;
+  globalTiming?: OutreachGlobalTiming | null;
+  sessionScores?: Array<{ sessionId: string; sessionName: string; total: number; sent: number; failed: number; blocked: number; pending: number; score: number; bursts: number }>;
   batches: OutreachBatchExecution[];
   live: { sessions: OutreachLiveSession[] } | null;
 }
@@ -1111,6 +1163,8 @@ export const apiKeyApi = {
     allowedIps?: string[];
     allowedSessions?: string[];
     expiresAt?: string;
+    credits?: number;
+    creditCost?: Record<string, number>;
   }) =>
     request<CreatedApiKey>('/auth/api-keys', {
       method: 'POST',
@@ -1118,6 +1172,18 @@ export const apiKeyApi = {
     }),
   delete: (id: string) => request<void>(`/auth/api-keys/${id}`, { method: 'DELETE' }),
   revoke: (id: string) => request<ApiKey>(`/auth/api-keys/${id}/revoke`, { method: 'POST' }),
+  getCredits: (id: string) => request<{ credits: number | null; creditsUsed: number; creditsRemaining: number | null; creditCost: Record<string, number> | null }>(`/auth/api-keys/${id}/credits`),
+  addCredits: (id: string, amount: number) => request<ApiKey>(`/auth/api-keys/${id}/credits/add`, { method: 'POST', body: JSON.stringify({ amount }) }),
+  setCreditCost: (id: string, creditCost: Record<string, number>) => request<ApiKey>(`/auth/api-keys/${id}/credit-cost`, { method: 'PUT', body: JSON.stringify({ creditCost }) }),
+};
+
+export const creditApi = {
+  listTemplates: () => request<CreditTemplate[]>('/credits/templates'),
+  createTemplate: (data: { name: string; body: string; type?: string; creditCost?: number; mediaUrl?: string; mimetype?: string }) =>
+    request<CreditTemplate>('/credits/templates', { method: 'POST', body: JSON.stringify(data) }),
+  updateTemplate: (id: string, data: Partial<CreditTemplate>) =>
+    request<CreditTemplate>(`/credits/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteTemplate: (id: string) => request<void>(`/credits/templates/${id}`, { method: 'DELETE' }),
 };
 
 // =============================================================================

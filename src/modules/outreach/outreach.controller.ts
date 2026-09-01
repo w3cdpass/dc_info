@@ -1,6 +1,9 @@
 import { Controller, Get, Post, Delete, Param, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { OutreachService } from './outreach.service';
+import { CurrentApiKey } from '../auth/decorators/auth.decorators';
+import { ApiKey } from '../auth/entities/api-key.entity';
+import { AuthService } from '../auth/auth.service';
 import {
   CreateOutreachCampaignDto,
   OutreachCampaignResponseDto,
@@ -9,7 +12,7 @@ import {
 @ApiTags('Outreach')
 @Controller('outreach/campaigns')
 export class OutreachController {
-  constructor(private readonly outreach: OutreachService) {}
+  constructor(private readonly outreach: OutreachService, private readonly authService: AuthService) {}
 
   @Post()
   @ApiOperation({
@@ -26,7 +29,14 @@ export class OutreachController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Start a scheduled campaign (begins dispatching round-robin bursts).' })
   @ApiResponse({ status: 200, type: OutreachCampaignResponseDto })
-  start(@Param('id') id: string): Promise<OutreachCampaignResponseDto> {
+  async start(@Param('id') id: string, @CurrentApiKey() apiKey?: ApiKey): Promise<OutreachCampaignResponseDto> {
+    if (apiKey && (apiKey as any).credits != null) {
+      const campaign = await this.outreach.status(id);
+      const costMap = (apiKey as any).creditCost as Record<string, number> | null;
+      const perContact = costMap?.['campaign'] ?? costMap?.['default'] ?? 1;
+      const totalCost = (campaign.contactCount ?? 0) * perContact;
+      await this.authService.consumeCredit(apiKey.id, totalCost);
+    }
     return this.outreach.start(id);
   }
 

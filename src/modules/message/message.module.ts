@@ -14,6 +14,7 @@ import { Session } from '../session/entities/session.entity';
 import { SendPacingService } from './send-pacing.service';
 import { MessageBatch } from './entities/message-batch.entity';
 import { PLUGIN_MESSAGE_PORT, type PluginMessagePort } from '../../core/plugins/plugin-host-ports';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { PLUGIN_MESSAGE_PORT, type PluginMessagePort } from '../../core/plugins/
     SessionModule,
     TemplateModule,
     ChatMediaModule,
+    AuthModule,
   ],
   controllers: [MessageController],
   providers: [

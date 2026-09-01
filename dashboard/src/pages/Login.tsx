@@ -205,7 +205,7 @@ export function Login({ onLogin }: LoginProps) {
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="infyle@infyle.com"
+                  placeholder="mail"
                   autoComplete="email"
                 />
               </div>

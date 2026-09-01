@@ -2,19 +2,27 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Activity,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Loader2,
   Pause,
   Play,
   Plus,
-  Trash2,
+  Timer,
   Workflow,
+  AlertTriangle,
+  Ban,
+  Send,
+  Users,
+  Trophy,
 } from 'lucide-react';
 import {
   type OutreachCampaign,
   type OutreachCampaignExecution,
   type OutreachLiveSession,
   type OutreachSessionAllocation,
+  type OutreachBurstProgress,
 } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
@@ -56,64 +64,6 @@ function formatMs(ms: number): string {
   return rem ? `${h}h ${rem}m` : `${h}h`;
 }
 
-/**
- * The per-session burst queue. Renders the divided plan: session A sends bursts of N messages with
- * a cooldown between bursts; sessions rotate round-robin (burst 1 of every session, then burst 2, …).
- */
-function BurstSchedule({ distribution, strategy }: { distribution?: OutreachSessionAllocation[] | null; strategy?: OutreachCampaign['strategy'] | null }) {
-  const { t } = useTranslation();
-  if (!distribution || distribution.length === 0) {
-    return <div className="campaigns-empty">{t('campaigns.noSchedule')}</div>;
-  }
-  const cooldownMin = strategy?.cooldownMinMs ?? DEFAULTS.cooldownMinMs;
-  const cooldownMax = strategy?.cooldownMaxMs ?? DEFAULTS.cooldownMaxMs;
-
-  return (
-    <div className="campaigns-schedule">
-      <p className="campaigns-note">{t('campaigns.roundRobinNote')}</p>
-      <div className="campaigns-lanes">
-        {distribution.map(session => (
-          <div key={session.sessionId} className="campaigns-lane">
-            <div className="campaigns-lane__head">
-              <span className="campaigns-lane__name">{session.sessionName}</span>
-              <span className="campaigns-lane__sub">{session.assigned} {t('campaigns.contacts')}</span>
-            </div>
-            <div className="campaigns-lane__body">
-              {session.bursts?.length
-                ? session.bursts.map(b => (
-                    <div key={b.burstIndex} className="campaigns-burst">
-                      <div className="campaigns-burst__badge">
-                        {t('campaigns.burst', { n: b.burstIndex + 1 })}
-                      </div>
-                      <div className="campaigns-burst__count">{t('campaigns.msg', { n: b.contacts.length })}</div>
-                      <div className="campaigns-burst__rest">
-                        <Clock size={12} /> {t('campaigns.rest')}
-                        <span className="campaigns-burst__restdetail">
-                          {t('campaigns.restDetail', {
-                            min: Math.round(cooldownMin / 60000),
-                            max: Math.round(cooldownMax / 60000),
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                : session.contacts.length > 0 && (
-                    <div className="campaigns-burst">
-                      <div className="campaigns-burst__badge">{t('campaigns.burst', { n: 1 })}</div>
-                      <div className="campaigns-burst__count">{t('campaigns.msg', { n: session.contacts.length })}</div>
-                      <div className="campaigns-burst__rest">
-                        <Clock size={12} /> {t('campaigns.rest')}
-                      </div>
-                    </div>
-                  )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function formatCountdown(ms: number): string {
   if (!Number.isFinite(ms) || ms <= 0) return '0s';
   const total = Math.ceil(ms / 1000);
@@ -133,11 +83,232 @@ function formatElapsed(start: number, now: number): string {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-/**
- * Live dispatch timeline for a running/just-finished campaign. Ticks every second to show an elapsed
- * timer, per-session live status (burst in flight or cooldown countdown), and a burst-by-burst
- * history with per-burst sent counts so the operator sees messages actually going out.
- */
+function formatDateTime(iso?: string | null): string {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString();
+  } catch { return iso; }
+}
+
+function formatTimeOnly(iso?: string | null): string {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch { return iso; }
+}
+
+// ── Global Timeline Header ───────────────────────────────────────────────
+function GlobalTimeline({ campaign, execution }: { campaign: OutreachCampaign; execution?: OutreachCampaignExecution | null }) {
+  const { t } = useTranslation();
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (campaign.status !== 'running') return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [campaign.status]);
+  const timing = execution?.globalTiming ?? campaign.globalTiming;
+  const startedAt = timing?.startedAt ?? campaign.startedAt;
+  const estimatedFinish = timing?.estimatedFinish ?? null;
+  const startedMs = startedAt ? new Date(startedAt).getTime() : null;
+  const finishMs = estimatedFinish ? new Date(estimatedFinish).getTime() : null;
+  const total = timing?.totalBursts ?? 0;
+  const completed = timing?.completedBursts ?? 0;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const remainingMs = finishMs && startedMs ? Math.max(0, finishMs - now) : 0;
+
+  return (
+    <div className="campaigns-global-timeline">
+      <div className="campaigns-global-timeline__row">
+        <div className="campaigns-global-timeline__item">
+          <span className="campaigns-global-timeline__label">{t('campaigns.startedAt') ?? 'Campaign started at'}</span>
+          <span className="campaigns-global-timeline__value">{formatDateTime(startedAt)}</span>
+        </div>
+        <div className="campaigns-global-timeline__arrow">→</div>
+        <div className="campaigns-global-timeline__item campaigns-global-timeline__item--now">
+          <span className="campaigns-global-timeline__label">Now</span>
+          <span className="campaigns-global-timeline__value">{new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} {startedMs ? `· ${formatElapsed(startedMs, now)} elapsed` : ''}</span>
+        </div>
+        <div className="campaigns-global-timeline__arrow">→</div>
+        <div className="campaigns-global-timeline__item">
+          <span className="campaigns-global-timeline__label">{t('campaigns.estimatedFinish') ?? 'Estimated finish'}</span>
+          <span className="campaigns-global-timeline__value campaigns-global-timeline__value--eta">{formatDateTime(estimatedFinish)} {campaign.status === 'running' && finishMs ? `· ${formatCountdown(remainingMs)} left` : ''}</span>
+        </div>
+      </div>
+      <div className="campaigns-global-timeline__bar">
+        <div className="campaigns-global-timeline__fill" style={{ width: `${pct}%` }} />
+        <span className="campaigns-global-timeline__pct">{pct}% · {completed}/{total} bursts</span>
+      </div>
+      {timing && (
+        <div className="campaigns-global-timeline__meta">
+          {timing.remainingBursts} bursts remaining · avg {(campaign.strategy?.pacing.minDelayMs ?? 0 + (campaign.strategy?.pacing.maxDelayMs ?? 0))/2 ? `${Math.round(((campaign.strategy!.pacing.minDelayMs + campaign.strategy!.pacing.maxDelayMs)/2)/1000)}s/msg` : ''} · cooldown {formatMs(campaign.strategy?.cooldownMinMs ?? 0)}–{formatMs(campaign.strategy?.cooldownMaxMs ?? 0)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Burst Card (visual separation + color coding + progress) ────────────
+function BurstCard({ burst, now }: { burst: OutreachBurstProgress; now: number }) {
+  const isRunning = burst.status === 'running';
+  const isPending = burst.status === 'pending';
+  const isCompleted = burst.status === 'completed';
+  const isFailed = burst.status === 'failed';
+  const total = burst.burstSize;
+  const sent = burst.sent;
+  const failed = burst.failed;
+  const blocked = burst.blocked;
+  const pending = burst.pending;
+  const pct = total > 0 ? Math.round(((sent) / total) * 100) : 0;
+
+  // Timing
+  const estimatedStart = burst.estimatedStart;
+  const estimatedEnd = burst.estimatedEnd;
+  const actualStart = burst.startTime;
+  const actualEnd = burst.endTime;
+  const countdown = isRunning && estimatedEnd ? Math.max(0, new Date(estimatedEnd).getTime() - now) : 0;
+
+  const statusColor = isCompleted ? 'burst--done' : isRunning ? 'burst--running' : isFailed ? 'burst--failed' : 'burst--pending';
+
+  return (
+    <div className={`campaigns-burst-card ${statusColor}`}>
+      <div className="campaigns-burst-card__head">
+        <span className="campaigns-burst-card__num">Burst {burst.burstIndex + 1}</span>
+        <span className={`campaigns-burst-card__status campaigns-burst-card__status--${burst.status}`}>{burst.status}</span>
+        <span className="campaigns-burst-card__size"><Users size={12} /> {total} msgs</span>
+      </div>
+
+      {/* Status counts with color coding */}
+      <div className="campaigns-burst-card__counts">
+        <span className="count count--sent"><Send size={11} /> {sent} <small>sent</small></span>
+        <span className="count count--failed"><AlertTriangle size={11} /> {failed} <small>failed</small></span>
+        <span className="count count--blocked"><Ban size={11} /> {blocked} <small>blocked</small></span>
+        <span className="count count--pending"><Clock size={11} /> {pending} <small>pending</small></span>
+      </div>
+
+      {/* Progress bar sent-vs-total per burst */}
+      <div className="campaigns-burst-card__progress">
+        <div className="campaigns-burst-card__track">
+          <div className="campaigns-burst-card__fill" style={{ width: `${pct}%` }} />
+          <div className="campaigns-burst-card__blocked" style={{ width: `${total ? Math.round((blocked/total)*100) : 0}%`, marginLeft: `${pct}%` }} />
+        </div>
+        <span className="campaigns-burst-card__pct">{pct}%</span>
+      </div>
+
+      {/* Timing: estimated vs actual */}
+      <div className="campaigns-burst-card__timing">
+        {isCompleted || isFailed ? (
+          <>
+            <span className="timing timing--actual"><Clock size={11} /> {formatTimeOnly(actualStart)} → {formatTimeOnly(actualEnd)}</span>
+            <span className="timing timing--actual-detail">{actualStart ? new Date(actualStart).toLocaleString() : ''}</span>
+          </>
+        ) : isRunning ? (
+          <>
+            <span className="timing timing--live"><Timer size={11} /> {formatCountdown(countdown)} left · ends ~{formatTimeOnly(estimatedEnd)}</span>
+            <div className="campaigns-burst-card__livebar"><div className="campaigns-burst-card__livefill" style={{ width: `${Math.min(100, Math.max(5, pct))}%` }} /></div>
+          </>
+        ) : (
+          <>
+            <span className="timing timing--est"><Clock size={11} /> est. {formatTimeOnly(estimatedStart)} → {formatTimeOnly(estimatedEnd)}</span>
+            {burst.cooldownMs ? <span className="timing timing--cooldown">Warm-up/Rest {formatMs(burst.cooldownMs)} before next</span> : null}
+          </>
+        )}
+      </div>
+
+      {/* Cooldown label between bursts */}
+      {burst.cooldownMs && !isPending && <div className="campaigns-burst-card__cooldown">Resting {formatMs(burst.cooldownMs)} before Burst {burst.burstIndex + 2}</div>}
+
+      {/* Per-recipient expandable (phone → status) */}
+      {burst.results && burst.results.length > 0 && (
+        <details className="campaigns-burst-card__recipients">
+          <summary>{burst.results.length} recipients · show numbers</summary>
+          <div className="campaigns-burst-card__recipient-list">
+            {burst.results.map((r, idx) => (
+              <div key={idx} className={`recipient recipient--${r.status}`}>
+                <span className="recipient-phone">{r.phone} {r.name ? `(${r.name})` : ''}</span>
+                <span className={`recipient-status recipient-status--${r.status}`}>{r.status}</span>
+                {r.errorMessage && <span className="recipient-error" title={r.errorMessage}>{r.errorCode}: {r.errorMessage.slice(0, 80)}</span>}
+                {r.sentAt && <span className="recipient-time">{new Date(r.sentAt).toLocaleTimeString()}</span>}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+// ── Per-Session Burst Report (collapsible) ───────────────────────────────
+function SessionBurstReport({ session, bursts, now, expanded, onToggle }: { session: OutreachSessionAllocation; bursts: OutreachBurstProgress[]; now: number; expanded: boolean; onToggle: () => void }) {
+  const sessionBursts = bursts.filter(b => b.sessionId === session.sessionId).sort((a, b) => a.burstIndex - b.burstIndex);
+  const totalSent = sessionBursts.reduce((a, b) => a + b.sent, 0);
+  const totalFailed = sessionBursts.reduce((a, b) => a + b.failed, 0);
+  const totalBlocked = sessionBursts.reduce((a, b) => a + b.blocked, 0);
+  const totalPending = sessionBursts.reduce((a, b) => a + b.pending, 0);
+  const replyRate = sessionBursts.length ? Math.round((totalSent / session.assigned) * 100) : 0;
+
+  return (
+    <div className="campaigns-session-report">
+      <button className="campaigns-session-report__header" onClick={onToggle}>
+        <div className="campaigns-session-report__left">
+          <span className="campaigns-session-report__name">{session.sessionName}</span>
+          <span className="campaigns-session-report__meta">{session.assigned} contacts · {sessionBursts.length} bursts · score {replyRate}%</span>
+          <span className="campaigns-session-report__counts">
+            <span className="c c-sent">{totalSent} sent</span>
+            <span className="c c-failed">{totalFailed} failed</span>
+            <span className="c c-blocked">{totalBlocked} blocked</span>
+            <span className="c c-pending">{totalPending} pending</span>
+          </span>
+        </div>
+        <span className="campaigns-session-report__toggle">{expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
+      </button>
+
+      {expanded && (
+        <div className="campaigns-session-report__body">
+          {/* Burst cards grid */}
+          <div className="campaigns-burst-grid">
+            {sessionBursts.map(b => (
+              <BurstCard key={b.burstIndex} burst={b} now={now} />
+            ))}
+          </div>
+
+          {/* Table fallback for dense scan */}
+          <table className="campaigns-burst-table">
+            <thead>
+              <tr>
+                <th>Burst</th><th>Size</th><th>Sent</th><th>Failed</th><th>Blocked</th><th>Pending</th><th>Reply %</th><th>Start</th><th>End</th><th>Cooldown</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sessionBursts.map(b => (
+                <tr key={b.burstIndex} className={`row--${b.status}`}>
+                  <td>#{b.burstIndex + 1}</td>
+                  <td>{b.burstSize}</td>
+                  <td className="td-sent">{b.sent}</td>
+                  <td className="td-failed">{b.failed}</td>
+                  <td className="td-blocked">{b.blocked}</td>
+                  <td className="td-pending">{b.pending}</td>
+                  <td>{b.burstSize ? Math.round((b.sent / b.burstSize)*100) : 0}%</td>
+                  <td title={b.startTime ?? b.estimatedStart ?? ''}>{b.startTime ? formatTimeOnly(b.startTime) : `est ${formatTimeOnly(b.estimatedStart)}`}</td>
+                  <td title={b.endTime ?? b.estimatedEnd ?? ''}>{b.endTime ? formatTimeOnly(b.endTime) : `est ${formatTimeOnly(b.estimatedEnd)}`}</td>
+                  <td>{b.cooldownMs ? formatMs(b.cooldownMs) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatCountdownLive(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return '0s';
+  const total = Math.ceil(ms / 1000);
+  if (total < 60) return `${total}s`;
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return s ? `${m}m ${s}s` : `${m}m`;
+}
+
 function CampaignLiveView({
   campaign,
   execution,
@@ -158,88 +329,71 @@ function CampaignLiveView({
 
   const liveSessions = execution?.live?.sessions ?? [];
   const liveBySession = new Map<string, OutreachLiveSession>(liveSessions.map(s => [s.sessionName, s]));
-  const sent = (execution?.sessionProgress ?? campaign.sessionProgress ?? []).reduce(
-    (a, p) => a + (p.sent ?? 0), 0,
-  );
-  const failed = (execution?.sessionProgress ?? campaign.sessionProgress ?? []).reduce(
-    (a, p) => a + (p.failed ?? 0), 0,
-  );
-  const total = execution?.sessionProgress?.reduce((a, p) => a + (p.total ?? 0), 0)
-    ?? campaign.contactCount;
+  const bursts = execution?.burstReport ?? execution?.burstProgress ?? campaign.burstProgress ?? [];
+  const [expandedSessions, setExpandedSessions] = useState<Record<string, boolean>>({});
+  const toggle = (id: string) => setExpandedSessions(prev => ({ ...prev, [id]: !prev[id] }));
+
+  const sent = (execution?.sessionProgress ?? campaign.sessionProgress ?? []).reduce((a, p) => a + (p.sent ?? 0), 0);
+  const total = execution?.sessionProgress?.reduce((a, p) => a + (p.total ?? 0), 0) ?? campaign.contactCount;
+
+  if (!campaign.distribution || campaign.distribution.length === 0) return null;
 
   return (
     <div className="campaigns-live">
+      <GlobalTimeline campaign={campaign} execution={execution} />
+
       <div className="campaigns-live__header">
         <div className="campaigns-live__elapsed">
           <Clock size={14} />
           <span className="campaigns-live__elapsed-label">{t('campaigns.elapsed')}</span>
-          <span className="campaigns-live__elapsed-value">
-            {startedMs ? formatElapsed(startedMs, now) : '0:00'}
-          </span>
+          <span className="campaigns-live__elapsed-value">{startedMs ? formatElapsed(startedMs, now) : '0:00'}</span>
         </div>
         <div className="campaigns-live__totals">
           <span className="campaigns-live__total-sent">{sent}/{total} {t('campaigns.sentTotal')}</span>
-          <span className="campaigns-live__total-failed">{failed} {t('campaigns.failed')}</span>
           <span className="campaigns-live__pct">{total > 0 ? Math.round((sent / total) * 100) : 0}%</span>
         </div>
       </div>
 
+      {/* Session scores ranking */}
+      {execution?.sessionScores && execution.sessionScores.length > 0 && (
+        <div className="campaigns-scores">
+          <h4><Trophy size={14} /> Session scores (highest reply rate first)</h4>
+          <div className="campaigns-scores__list">
+            {execution.sessionScores.map(s => (
+              <div key={s.sessionId} className="campaigns-scores__item">
+                <span className="campaigns-scores__name">{s.sessionName}</span>
+                <span className="campaigns-scores__score">{s.score}%</span>
+                <span className="campaigns-scores__meta">{s.sent}/{s.total} · {s.blocked} blocked</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {(campaign.distribution ?? []).map(session => {
         const live = liveBySession.get(session.sessionName);
-        const sentByBurst = new Map<string, number>();
-        for (const b of execution?.batches ?? []) {
-          if (b.sessionName !== session.sessionName) continue;
-          const idx = /oc-[0-9a-f]{8}-[0-9a-f]{6}-(\d+)/.exec(b.batchId);
-          const burstIdx = idx ? Number(idx[1]) : sentByBurst.size;
-          sentByBurst.set(String(burstIdx), b.progress?.sent ?? 0);
-        }
-        const countdown =
-          live && !live.inFlight && live.nextAvailableAt > now
-            ? live.nextAvailableAt - now
-            : 0;
-
+        const isExpanded = expandedSessions[session.sessionId] ?? campaign.status === 'running';
+        const countdown = live && !live.inFlight && live.nextAvailableAt > now ? live.nextAvailableAt - now : 0;
         return (
-          <div key={session.sessionId} className="campaigns-live__session">
-            <div className="campaigns-live__session-head">
-              <span className="campaigns-live__session-name">{session.sessionName}</span>
-              {live ? (
-                live.inFlight ? (
-                  <span className="campaigns-live__badge campaigns-live__badge--sending">
-                    {t('campaigns.sending')}
-                  </span>
+          <div key={session.sessionId}>
+            <SessionBurstReport
+              session={session}
+              bursts={bursts as OutreachBurstProgress[]}
+              now={now}
+              expanded={isExpanded}
+              onToggle={() => toggle(session.sessionId)}
+            />
+            {live && (
+              <div className="campaigns-live__session-sub">
+                {live.inFlight ? (
+                  <span className="campaigns-live__badge campaigns-live__badge--sending">{t('campaigns.sending')}</span>
                 ) : live.nextBurstIndex >= live.totalBursts && live.totalBursts > 0 ? (
-                  <span className="campaigns-live__badge campaigns-live__badge--done">
-                    {t('campaigns.allSessionsDone')}
-                  </span>
+                  <span className="campaigns-live__badge campaigns-live__badge--done">{t('campaigns.allSessionsDone')}</span>
                 ) : (
-                  <span className="campaigns-live__badge campaigns-live__badge--cooldown">
-                    {t('campaigns.nextBurstIn', { time: formatCountdown(countdown) })}
-                  </span>
-                )
-              ) : (
-                <span className="campaigns-live__badge campaigns-live__badge--cooldown">—</span>
-              )}
-            </div>
-
-            {session.bursts?.length ? (
-              <div className="campaigns-live__bursts">
-                {session.bursts.map((b, i) => {
-                  const done = live ? i < live.nextBurstIndex : true;
-                  const active = live ? i === live.nextBurstIndex && live.inFlight : false;
-                  const count = sentByBurst.get(String(i)) ?? (done ? b.contacts.length : 0);
-                  return (
-                    <div
-                      key={b.burstIndex}
-                      className={`campaigns-live__burst${done ? ' is-done' : ''}${active ? ' is-active' : ''}`}
-                      title={`Burst ${i + 1}`}
-                    >
-                      <span className="campaigns-live__burst-num">{i + 1}</span>
-                      <span className="campaigns-live__burst-count">{count}/{b.contacts.length}</span>
-                    </div>
-                  );
-                })}
+                  <span className="campaigns-live__badge campaigns-live__badge--cooldown">Resting {formatCountdownLive(countdown)} before Burst {(live.nextBurstIndex ?? 0) + 1}</span>
+                )}
               </div>
-            ) : null}
+            )}
           </div>
         );
       })}
@@ -247,14 +401,9 @@ function CampaignLiveView({
   );
 }
 
-/** Polls the execution report for a single campaign and renders its live dispatch timeline. */
-function CampaignLiveViewWithData({
-  campaign,
-}: {
-  campaign: OutreachCampaign;
-}) {
+function CampaignLiveViewWithData({ campaign }: { campaign: OutreachCampaign }) {
   const shouldPoll = campaign.status === 'running';
-  const { data: execution } = useOutreachExecutionQuery(campaign.id, shouldPoll || campaign.status === 'completed');
+  const { data: execution } = useOutreachExecutionQuery(campaign.id, shouldPoll || campaign.status === 'completed' || !!campaign.burstProgress);
   return <CampaignLiveView campaign={campaign} execution={execution} />;
 }
 
@@ -274,7 +423,6 @@ export function Campaigns() {
   const actionMutation = useOutreachActionMutation();
   const deleteMutation = useOutreachDeleteMutation();
 
-  // Create modal state
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
@@ -402,9 +550,9 @@ export function Campaigns() {
         <div className="campaigns-list">
           {campaigns.map(c => {
             const stats = c.sessionProgress?.reduce(
-              (acc, p) => ({ sent: acc.sent + p.sent, failed: acc.failed + p.failed, pending: acc.pending + p.pending }),
-              { sent: 0, failed: 0, pending: 0 },
-            ) ?? { sent: 0, failed: 0, pending: 0 };
+              (acc, p) => ({ sent: acc.sent + p.sent, failed: acc.failed + p.failed, pending: acc.pending + p.pending, blocked: (acc.blocked ?? 0) + ((p as any).blocked ?? 0) }),
+              { sent: 0, failed: 0, pending: 0, blocked: 0 },
+            ) ?? { sent: 0, failed: 0, pending: 0, blocked: 0 };
             return (
               <section key={c.id} className="campaigns-card">
                 <header className="campaigns-card__head">
@@ -423,7 +571,7 @@ export function Campaigns() {
                     )}
                     {c.strategy?.maxPerSessionPerDay && <span>max {c.strategy.maxPerSessionPerDay}/sess</span>}
                     <span className="campaigns-sendstats">
-                      <Activity size={13} /> {stats.sent} {t('campaigns.sentTotal')} · {stats.pending} {t('campaigns.pending')} · {stats.failed} {t('campaigns.failed')}
+                      <Activity size={13} /> {stats.sent} {t('campaigns.sentTotal')} · {stats.pending} {t('campaigns.pending')} · {stats.failed} {t('campaigns.failed')} {stats.blocked ? `· ${stats.blocked} blocked` : ''}
                     </span>
                   </div>
                   {canWrite && (
@@ -443,8 +591,8 @@ export function Campaigns() {
                           <button className="btn-secondary" onClick={() => handleAction(c, 'start')} title={t('campaigns.restart')}>
                             <Play size={15} /> {t('campaigns.restart')}
                           </button>
-                          <button className="btn-icon btn-danger" onClick={() => handleDelete(c)} title={t('campaigns.delete')}>
-                            <Trash2 size={15} />
+                          <button onClick={() => handleDelete(c)} title={t('campaigns.delete')}>
+                            {t('campaigns.delete')}
                           </button>
                         </>
                       )}
@@ -454,9 +602,10 @@ export function Campaigns() {
 
                 <div className="campaigns-card__message">{c.messageText}</div>
 
-                <BurstSchedule distribution={c.distribution} strategy={c.strategy} />
+                {/* Global timing always visible when started */}
+                {(c.startedAt || c.globalTiming?.startedAt) && <GlobalTimeline campaign={c} execution={null} />}
 
-                {(c.status === 'running' || c.status === 'completed') && (
+                {(c.status === 'running' || c.status === 'completed' || !!c.burstProgress) && (
                   <CampaignLiveViewWithData campaign={c} />
                 )}
 
@@ -464,7 +613,7 @@ export function Campaigns() {
                   <div className="campaigns-progress">
                     {c.sessionProgress?.map(p => {
                       const rr = replyBySession.get(p.sessionName);
-                      const barPct = p.total > 0 ? ((p.sent + p.failed) / p.total) * 100 : 0;
+                      const barPct = p.total > 0 ? ((p.sent + p.failed + ((p as any).blocked ?? 0)) / p.total) * 100 : 0;
                       return (
                         <div key={p.sessionId} className="campaigns-progress__row">
                           <span className="campaigns-progress__name">{p.sessionName}</span>
@@ -477,6 +626,7 @@ export function Campaigns() {
                           <span className="campaigns-progress__reply">
                             {rr ? `${rr.replied} ${t('campaigns.replied')} · ${Math.round(rr.sent > 0 ? (rr.replied / rr.sent) * 100 : 0)}%` : ''}
                             {rr && (rr.blocked > 0 || rr.reported > 0) ? ` · B/R ${rr.blocked + rr.reported}` : ''}
+                            {(p as any).blocked ? ` · blocked ${(p as any).blocked}` : ''}
                           </span>
                         </div>
                       );

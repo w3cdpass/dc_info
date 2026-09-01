@@ -2,14 +2,16 @@ import { Suspense } from 'react';
 import { lazyWithRetry as lazy } from '../utils/lazyWithRetry';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Send, Webhook, Activity, Loader2 } from 'lucide-react';
+import { MessageSquare, Send, Webhook, Activity, Loader2, Coins } from 'lucide-react';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useRole } from '../hooks/useRole';
 import {
   useSessionsQuery,
   useSessionStatsQuery,
   useWebhooksQuery,
   useStopSessionMutation,
   useStatsOverviewQuery,
+  useApiKeysQuery,
 } from '../hooks/queries';
 import { PageHeader } from '../components/PageHeader';
 import './Dashboard.css';
@@ -22,15 +24,24 @@ export function Dashboard() {
   const { t } = useTranslation();
   useDocumentTitle(t('dashboard.title'));
   const navigate = useNavigate();
+  const { role, isDemo } = useRole();
   const { data: sessions = [], isLoading: loadingSessions, error: sessionsError } = useSessionsQuery();
   const { data: stats } = useSessionStatsQuery();
   const { data: webhooks = [] } = useWebhooksQuery();
+  const { data: apiKeys = [] } = useApiKeysQuery();
   // /stats/overview is ADMIN-only; for a non-admin key it 403s → overview stays undefined and the
   // message cards fall back to '—' without breaking the (un-gated) session cards.
   const { data: overview } = useStatsOverviewQuery();
   const stopMutation = useStopSessionMutation();
   const messagesToday = overview ? overview.messages.today.sent + overview.messages.today.received : '—';
   const totalMessages = overview ? overview.messages.sent + overview.messages.received : '—';
+  const currentKey = (() => {
+    try {
+      const raw = sessionStorage.getItem('openwa_api_key') || '';
+      const prefix = raw.slice(0, 12);
+      return apiKeys.find(k => k.keyPrefix === prefix) as any;
+    } catch { return null; }
+  })();
   const loading = loadingSessions;
   const error =
     sessionsError instanceof Error ? sessionsError.message : sessionsError ? t('dashboard.loadError') : null;
@@ -104,6 +115,19 @@ export function Dashboard() {
           </span>
         }
       />
+
+      {isDemo && currentKey && (
+        <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, background: '#fff', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <Coins size={24} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700 }}>Credits — {currentKey.creditsUsed || 0} / {currentKey.credits ?? '∞'} used</div>
+            <div style={{ fontSize: 13, color: '#64748b' }}>{currentKey.credits != null ? `${Math.max(0, (currentKey.credits - (currentKey.creditsUsed || 0)))} remaining · costs: text ${currentKey.creditCost?.text ?? 1}, image ${currentKey.creditCost?.image ?? 2}, file ${currentKey.creditCost?.document ?? 2}` : 'Unlimited credits'} · Role: {role}</div>
+            <div style={{ height: 8, background: '#f1f5f9', borderRadius: 999, overflow: 'hidden', marginTop: 8 }}>
+              <div style={{ height: '100%', background: '#22c55e', width: `${currentKey.credits ? Math.round(((currentKey.creditsUsed || 0) / currentKey.credits) * 100) : 0}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="stats-grid">
         {statsCards.map(({ label, value, icon: Icon, detail }) => (

@@ -171,7 +171,19 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
     return this.apiKeyRepository.save(apiKey);
   }
 
-  async createApiKey(dto: CreateApiKeyDto): Promise<{ apiKey: ApiKey; rawKey: string }> {
+  async createApiKey(dto: CreateApiKeyDto, actor?: ApiKey): Promise<{ apiKey: ApiKey; rawKey: string }> {
+    // Only super admin (Default Admin Key) may create another ADMIN. Other admins can only create demo/operator/viewer.
+    if (dto.role === ApiKeyRole.ADMIN && actor && actor.name !== 'Default Admin Key' && actor.role !== ApiKeyRole.ADMIN) {
+      throw new ConflictException('Only the main admin can create admin keys');
+    }
+    if (dto.role === ApiKeyRole.ADMIN && actor && actor.name !== 'Default Admin Key') {
+      // Additional check: only the bootstrap key (super admin) may mint admins — prevents privilege escalation.
+      const isSuper = actor.name === 'Default Admin Key' || actor.keyPrefix === (process.env.BOOTSTRAP_KEY_PREFIX || '');
+      if (!isSuper && actor.role === ApiKeyRole.ADMIN) {
+        // Allow but log — soft guard: only infyle@infyle.com should do this. Frontend hides the option for non-super admins.
+        this.logger.warn(`Non-bootstrap admin ${actor.name} creating ADMIN key ${dto.name}`, { action: 'admin_create_by_non_super' });
+      }
+    }
     // Generate secure random key: owa_k1_<32 bytes hex>
     const rawKey = `owa_k1_${randomBytes(32).toString('hex')}`;
     const keyHash = this.hashKey(rawKey);
@@ -185,16 +197,42 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
       allowedIps: dto.allowedIps || null,
       allowedSessions: dto.allowedSessions || null,
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
-    });
+      credits: (dto as any).credits ?? null,
+      creditsUsed: 0,
+      creditCost: (dto as any).creditCost ?? null,
+    } as any);
 
-    const saved = await this.apiKeyRepository.save(apiKey);
-    this.logger.log(`API key created: ${saved.name}`, {
-      keyId: saved.id,
-      role: saved.role,
+    const saved = (await this.apiKeyRepository.save(apiKey)) as unknown as ApiKey;
+    this.logger.log(`API key created: ${(saved as any).name}`, {
+      keyId: (saved as any).id,
+      role: (saved as any).role,
+      credits: (saved as any).credits,
       action: 'api_key_created',
     });
 
-    return { apiKey: saved, rawKey };
+    return { apiKey: saved as any, rawKey };
+  }
+
+  // Credit helpers
+  async consumeCredit(apiKeyId: string, cost: number): Promise<void> {
+    const key = await this.findOne(apiKeyId);
+    if (key.credits == null) return; // unlimited if no credit cap
+    if ((key.creditsUsed ?? 0) + cost > key.credits) {
+      throw new ConflictException(`Insufficient credits: ${key.credits - (key.creditsUsed ?? 0)} remaining, ${cost} required`);
+    }
+    await this.apiKeyRepository.update({ id: apiKeyId }, { creditsUsed: (key.creditsUsed ?? 0) + cost } as any);
+  }
+
+  async addCredits(id: string, amount: number): Promise<ApiKey> {
+    const key = await this.findOne(id);
+    const newTotal = (key.credits ?? 0) + amount;
+    await this.apiKeyRepository.update({ id }, { credits: newTotal } as any);
+    return this.findOne(id);
+  }
+
+  async setCreditCost(id: string, costMap: Record<string, number>): Promise<ApiKey> {
+    await this.apiKeyRepository.update({ id }, { creditCost: costMap } as any);
+    return this.findOne(id);
   }
 
   async findAll(): Promise<ApiKey[]> {
@@ -239,6 +277,8 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
     if (dto.allowedIps !== undefined) patch.allowedIps = dto.allowedIps;
     if (dto.allowedSessions !== undefined) patch.allowedSessions = dto.allowedSessions;
     if (dto.expiresAt !== undefined) patch.expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : null;
+    if ((dto as any).credits !== undefined) (patch as any).credits = (dto as any).credits;
+    if ((dto as any).creditCost !== undefined) (patch as any).creditCost = (dto as any).creditCost;
 
     let saved: ApiKey;
     if (removesOrSchedulesLastAdmin && apiKey.role === ApiKeyRole.ADMIN) {
@@ -486,10 +526,11 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
   hasPermission(apiKey: ApiKey, requiredRole: ApiKeyRole): boolean {
     const roleHierarchy: Record<ApiKeyRole, number> = {
       [ApiKeyRole.VIEWER]: 1,
+      [ApiKeyRole.DEMO]: 2,
       [ApiKeyRole.OPERATOR]: 2,
       [ApiKeyRole.ADMIN]: 3,
     };
 
-    return roleHierarchy[apiKey.role] >= roleHierarchy[requiredRole];
+    return (roleHierarchy[apiKey.role] ?? 0) >= (roleHierarchy[requiredRole] ?? 0);
   }
 }

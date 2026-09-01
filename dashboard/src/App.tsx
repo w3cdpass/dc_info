@@ -116,13 +116,13 @@ function AppContent() {
               <Route path="chats" element={<Chats />} />
               <Route path="webhooks" element={<Webhooks />} />
               <Route path="templates" element={<Templates />} />
-              {role === 'admin' && <Route path="api-keys" element={<ApiKeys />} />}
+              {(role === 'admin' || role === 'super_admin') && <Route path="api-keys" element={<ApiKeys />} />}
               <Route path="logs" element={<Logs />} />
                <Route path="message-tester" element={<MessageTester />} />
                <Route path="contacts" element={<Contacts />} />
                <Route path="campaigns" element={<Campaigns />} />
-              {role === 'admin' && <Route path="infrastructure" element={<Infrastructure />} />}
-              {role === 'admin' && <Route path="plugins" element={<Plugins />} />}
+              {(role === 'admin' || role === 'super_admin') && <Route path="infrastructure" element={<Infrastructure />} />}
+              {(role === 'admin' || role === 'super_admin') && <Route path="plugins" element={<Plugins />} />}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

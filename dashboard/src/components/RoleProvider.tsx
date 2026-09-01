@@ -20,10 +20,11 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const value: RoleContextType = {
     role,
     setRole,
-    isAdmin: role === 'admin',
+    isAdmin: role === 'admin' || role === 'super_admin',
     isOperator: role === 'operator',
     isViewer: role === 'viewer',
-    canWrite: role === 'admin' || role === 'operator',
+    isDemo: role === 'demo',
+    canWrite: role === 'admin' || role === 'operator' || role === 'super_admin' || role === 'demo',
   };
 
   return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;

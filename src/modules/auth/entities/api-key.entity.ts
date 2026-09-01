@@ -4,6 +4,7 @@ export enum ApiKeyRole {
   ADMIN = 'admin',
   OPERATOR = 'operator',
   VIEWER = 'viewer',
+  DEMO = 'demo',
 }
 
 @Entity('api_keys')
@@ -47,6 +48,17 @@ export class ApiKey {
 
   @Column({ type: 'int', default: 0 })
   usageCount!: number;
+
+  // Reseller credit system: demo users consume credits per message
+  @Column({ type: 'int', nullable: true })
+  credits!: number | null;
+
+  @Column({ type: 'int', default: 0 })
+  creditsUsed!: number;
+
+  // Per-message credit cost map, e.g. { text:1, image:2, document:2, video:2, campaign:5 }
+  @Column({ type: 'simple-json', nullable: true })
+  creditCost!: Record<string, number> | null;
 
   @CreateDateColumn()
   createdAt!: Date;

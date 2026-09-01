@@ -51,6 +51,14 @@ export class CreateApiKeyDto {
   @IsOptional()
   @IsDateString()
   expiresAt?: string;
+
+  @ApiPropertyOptional({ description: 'Initial credits for demo/reseller user', example: 100 })
+  @IsOptional()
+  credits?: number;
+
+  @ApiPropertyOptional({ description: 'Per-message credit cost map, e.g. { text:1, image:2, document:2 }' })
+  @IsOptional()
+  creditCost?: Record<string, number>;
 }
 
 export class ApiKeyResponseDto {
@@ -85,6 +93,18 @@ export class ApiKeyResponseDto {
 
   @ApiProperty()
   usageCount!: number;
+
+  @ApiPropertyOptional({ description: 'Total credits allocated (reseller/demo)' })
+  credits?: number | null;
+
+  @ApiPropertyOptional({ description: 'Credits consumed' })
+  creditsUsed?: number;
+
+  @ApiPropertyOptional({ description: 'Credit cost per message type' })
+  creditCost?: Record<string, number> | null;
+
+  @ApiPropertyOptional({ description: 'Remaining credits' })
+  creditsRemaining?: number;
 
   @ApiProperty()
   createdAt!: Date;
@@ -137,4 +157,12 @@ export class UpdateApiKeyDto {
   @IsOptional()
   @IsDateString()
   expiresAt?: string;
+
+  @ApiPropertyOptional({ description: 'Total credits', example: 100 })
+  @IsOptional()
+  credits?: number;
+
+  @ApiPropertyOptional({ description: 'Credit cost map' })
+  @IsOptional()
+  creditCost?: Record<string, number>;
 }

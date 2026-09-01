@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Req, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Req, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -46,7 +46,8 @@ export class AuthController {
     @Req() req: Request,
     @CurrentApiKey() actor?: ApiKey,
   ): Promise<ApiKeyCreatedResponseDto> {
-    const { apiKey, rawKey } = await this.authService.createApiKey(dto);
+    const { apiKey, rawKey } = await this.authService.createApiKey(dto, actor);
+    // Return extended fields
     await this.auditService.logInfo(AuditAction.API_KEY_CREATED, {
       ...this.auditContext(req, actor),
       metadata: { targetKeyId: apiKey.id, targetKeyName: apiKey.name, role: apiKey.role },
@@ -63,6 +64,10 @@ export class AuthController {
       lastUsedAt: apiKey.lastUsedAt || undefined,
       usageCount: apiKey.usageCount,
       createdAt: apiKey.createdAt,
+      credits: (apiKey as any).credits,
+      creditsUsed: (apiKey as any).creditsUsed,
+      creditCost: (apiKey as any).creditCost,
+      creditsRemaining: (apiKey as any).credits != null ? (apiKey as any).credits - ((apiKey as any).creditsUsed || 0) : undefined,
       apiKey: rawKey,
     };
   }
@@ -89,6 +94,10 @@ export class AuthController {
       lastUsedAt: k.lastUsedAt || undefined,
       usageCount: k.usageCount,
       createdAt: k.createdAt,
+      credits: (k as any).credits,
+      creditsUsed: (k as any).creditsUsed,
+      creditCost: (k as any).creditCost,
+      creditsRemaining: (k as any).credits != null ? (k as any).credits - ((k as any).creditsUsed || 0) : undefined,
     }));
   }
 
@@ -114,6 +123,10 @@ export class AuthController {
       lastUsedAt: k.lastUsedAt || undefined,
       usageCount: k.usageCount,
       createdAt: k.createdAt,
+      credits: (k as any).credits,
+      creditsUsed: (k as any).creditsUsed,
+      creditCost: (k as any).creditCost,
+      creditsRemaining: (k as any).credits != null ? (k as any).credits - ((k as any).creditsUsed || 0) : undefined,
     };
   }
 
@@ -157,6 +170,10 @@ export class AuthController {
       lastUsedAt: k.lastUsedAt || undefined,
       usageCount: k.usageCount,
       createdAt: k.createdAt,
+      credits: (k as any).credits,
+      creditsUsed: (k as any).creditsUsed,
+      creditCost: (k as any).creditCost,
+      creditsRemaining: (k as any).credits != null ? (k as any).credits - ((k as any).creditsUsed || 0) : undefined,
     };
   }
 
@@ -204,5 +221,65 @@ export class AuthController {
       usageCount: k.usageCount,
       createdAt: k.createdAt,
     };
+  }
+
+  @Get(':id/credits')
+  @ApiOperation({ summary: 'Get credit balance for an API key' })
+  async getCredits(@Param('id') id: string, @CurrentApiKey() actor?: ApiKey): Promise<{ credits: number | null; creditsUsed: number; creditsRemaining: number | null; creditCost: Record<string, number> | null }> {
+    // Demo can query own, admin can query any
+    if (actor && actor.id !== id && actor.role !== ApiKeyRole.ADMIN) throw new UnauthorizedException('Not authorized');
+    const k = await this.authService.findOne(id);
+    return {
+      credits: (k as any).credits ?? null,
+      creditsUsed: (k as any).creditsUsed ?? 0,
+      creditsRemaining: (k as any).credits != null ? (k as any).credits - ((k as any).creditsUsed ?? 0) : null,
+      creditCost: (k as any).creditCost ?? null,
+    };
+  }
+
+  @Post(':id/credits/add')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Add credits to an API key (admin only)' })
+  async addCredits(@Param('id') id: string, @Body() body: { amount: number }): Promise<ApiKeyResponseDto> {
+    const k = await this.authService.addCredits(id, Number(body.amount) || 0);
+    return {
+      id: k.id,
+      name: k.name,
+      keyPrefix: k.keyPrefix,
+      role: k.role,
+      allowedIps: k.allowedIps || undefined,
+      allowedSessions: k.allowedSessions || undefined,
+      isActive: k.isActive,
+      expiresAt: k.expiresAt || undefined,
+      lastUsedAt: k.lastUsedAt || undefined,
+      usageCount: k.usageCount,
+      createdAt: k.createdAt,
+      credits: (k as any).credits,
+      creditsUsed: (k as any).creditsUsed,
+      creditCost: (k as any).creditCost,
+    } as any;
+  }
+
+  @Put(':id/credit-cost')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Set per-message credit cost map (admin only)' })
+  async setCreditCost(@Param('id') id: string, @Body() body: { creditCost: Record<string, number> }): Promise<ApiKeyResponseDto> {
+    const k = await this.authService.setCreditCost(id, body.creditCost || {});
+    return {
+      id: k.id,
+      name: k.name,
+      keyPrefix: k.keyPrefix,
+      role: k.role,
+      allowedIps: k.allowedIps || undefined,
+      allowedSessions: k.allowedSessions || undefined,
+      isActive: k.isActive,
+      expiresAt: k.expiresAt || undefined,
+      lastUsedAt: k.lastUsedAt || undefined,
+      usageCount: k.usageCount,
+      createdAt: k.createdAt,
+      credits: (k as any).credits,
+      creditsUsed: (k as any).creditsUsed,
+      creditCost: (k as any).creditCost,
+    } as any;
   }
 }

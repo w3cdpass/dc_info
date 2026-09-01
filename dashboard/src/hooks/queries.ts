@@ -11,6 +11,7 @@ import {
   statsApi,
   registryApi,
   outreachApi,
+  creditApi,
   type Webhook,
   type WebhookFilters,
   type TemplatePayload,
@@ -47,6 +48,7 @@ export const queryKeys = {
   outreach: ['outreach'] as const,
   outreachDetail: (id: string) => ['outreach', id] as const,
   outreachExecution: (id: string) => ['outreach', id, 'execution'] as const,
+  creditTemplates: ['creditTemplates'] as const,
 };
 
 // ── Session Queries ───────────────────────────────────────────────────
@@ -477,5 +479,42 @@ export function useOutreachDeleteMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.outreach });
     },
+  });
+}
+
+// ── Credit Template Queries ──
+export function useCreditTemplatesQuery() {
+  return useQuery({
+    queryKey: queryKeys.creditTemplates,
+    queryFn: creditApi.listTemplates,
+    staleTime: 15_000,
+  });
+}
+export function useCreateCreditTemplateMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { name: string; body: string; type?: string; creditCost?: number; mediaUrl?: string; mimetype?: string }) => creditApi.createTemplate(data),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: queryKeys.creditTemplates }); },
+  });
+}
+export function useUpdateCreditTemplateMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { id: string; data: Partial<{ name: string; body: string; creditCost: number }> }) => creditApi.updateTemplate(params.id, params.data as any),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: queryKeys.creditTemplates }); },
+  });
+}
+export function useDeleteCreditTemplateMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => creditApi.deleteTemplate(id),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: queryKeys.creditTemplates }); },
+  });
+}
+export function useAddCreditsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { id: string; amount: number }) => apiKeyApi.addCredits(params.id, params.amount),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys }); },
   });
 }

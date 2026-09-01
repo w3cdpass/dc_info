@@ -45,8 +45,9 @@ import {
   VotePollDto,
   UnpinMessageDto,
 } from './dto/message-actions.dto';
-import { RequireRole } from '../auth/decorators/auth.decorators';
-import { ApiKeyRole } from '../auth/entities/api-key.entity';
+import { RequireRole, CurrentApiKey } from '../auth/decorators/auth.decorators';
+import { ApiKey, ApiKeyRole } from '../auth/entities/api-key.entity';
+import { AuthService } from '../auth/auth.service';
 import {
   CHANNEL_MEDIA_501,
   CUSTOM_LINK_PREVIEW_501,
@@ -62,7 +63,16 @@ export class MessageController {
   constructor(
     private readonly messageService: MessageService,
     private readonly bulkMessageService: BulkMessageService,
+    private readonly authService: AuthService,
   ) {}
+
+  private async deductCredit(apiKey: ApiKey | undefined, type: string, count = 1): Promise<void> {
+    if (!apiKey || (apiKey as any).credits == null) return;
+    const costMap = (apiKey as any).creditCost as Record<string, number> | null;
+    const perMsg = costMap?.[type] ?? costMap?.['default'] ?? 1;
+    const total = perMsg * count;
+    await this.authService.consumeCredit(apiKey.id, total);
+  }
 
   @Get()
   @ApiOperation({ summary: 'Get message history for a session' })
@@ -114,7 +124,8 @@ export class MessageController {
   })
   @ApiResponse({ status: 409, description: ENGINE_NOT_READY_409 })
   @ApiResponse({ status: 501, description: CUSTOM_LINK_PREVIEW_501 })
-  async sendText(@Param('sessionId') sessionId: string, @Body() dto: SendTextMessageDto): Promise<MessageResponseDto> {
+  async sendText(@Param('sessionId') sessionId: string, @Body() dto: SendTextMessageDto, @CurrentApiKey() apiKey?: ApiKey): Promise<MessageResponseDto> {
+    await this.deductCredit(apiKey, 'text');
     return this.messageService.sendText(sessionId, dto);
   }
 
@@ -136,7 +147,9 @@ export class MessageController {
   async sendTemplate(
     @Param('sessionId') sessionId: string,
     @Body() dto: SendTemplateMessageDto,
+    @CurrentApiKey() apiKey?: ApiKey,
   ): Promise<MessageResponseDto> {
+    await this.deductCredit(apiKey, 'template');
     return this.messageService.sendTemplate(sessionId, dto);
   }
 
@@ -161,7 +174,9 @@ export class MessageController {
   async sendImage(
     @Param('sessionId') sessionId: string,
     @Body() dto: SendMediaMessageDto,
+    @CurrentApiKey() apiKey?: ApiKey,
   ): Promise<MessageResponseDto> {
+    await this.deductCredit(apiKey, 'image');
     return this.messageService.sendImage(sessionId, dto);
   }
 
@@ -184,7 +199,9 @@ export class MessageController {
   async sendVideo(
     @Param('sessionId') sessionId: string,
     @Body() dto: SendMediaMessageDto,
+    @CurrentApiKey() apiKey?: ApiKey,
   ): Promise<MessageResponseDto> {
+    await this.deductCredit(apiKey, 'video');
     return this.messageService.sendVideo(sessionId, dto);
   }
 
@@ -207,7 +224,9 @@ export class MessageController {
   async sendAudio(
     @Param('sessionId') sessionId: string,
     @Body() dto: SendAudioMessageDto,
+    @CurrentApiKey() apiKey?: ApiKey,
   ): Promise<MessageResponseDto> {
+    await this.deductCredit(apiKey, 'audio');
     return this.messageService.sendAudio(sessionId, dto);
   }
 
@@ -230,7 +249,9 @@ export class MessageController {
   async sendDocument(
     @Param('sessionId') sessionId: string,
     @Body() dto: SendMediaMessageDto,
+    @CurrentApiKey() apiKey?: ApiKey,
   ): Promise<MessageResponseDto> {
+    await this.deductCredit(apiKey, 'document');
     return this.messageService.sendDocument(sessionId, dto);
   }
 
@@ -641,7 +662,9 @@ export class MessageController {
   async sendBulk(
     @Param('sessionId') sessionId: string,
     @Body() dto: SendBulkMessageDto,
+    @CurrentApiKey() apiKey?: ApiKey,
   ): Promise<BulkMessageResponseDto> {
+    await this.deductCredit(apiKey, 'bulk', dto.messages?.length ?? 1);
     const batch = await this.bulkMessageService.createBatch(sessionId, dto);
     const estimatedTime = new Date(Date.now() + batch.messages.length * (batch.options?.delayBetweenMessages || 3000));
 

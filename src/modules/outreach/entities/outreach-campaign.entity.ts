@@ -101,7 +101,35 @@ export class OutreachCampaign {
     total: number;
     sent: number;
     failed: number;
+    blocked: number;
     pending: number;
+  }> | null;
+
+  /**
+   * Per-burst delivery tracking: for every burst inside every session, store
+   * sent/failed/blocked/pending, timing (actual + estimated) and per-recipient
+   * results. Updated in real-time as batches complete.
+   */
+  @Column({ type: jsonColumnType(), nullable: true })
+  burstProgress!: Array<{
+    sessionId: string;
+    sessionName: string;
+    burstIndex: number;
+    burstSize: number;
+    batchId: string | null;
+    status: 'pending' | 'running' | 'cooldown' | 'completed' | 'failed';
+    sent: number;
+    failed: number;
+    blocked: number;
+    pending: number;
+    contacts: Array<{ phone: string; name?: string }>;
+    results: Array<{ phone: string; name?: string; chatId: string; status: string; errorCode?: string; errorMessage?: string; sentAt?: string }>;
+    startTime: string | null;
+    endTime: string | null;
+    estimatedStart: string | null;
+    estimatedEnd: string | null;
+    cooldownMs: number | null;
+    warmupMs: number | null;
   }> | null;
 
   /** All batch IDs created during this campaign (for querying per-recipient execution results). */

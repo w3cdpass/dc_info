@@ -192,8 +192,84 @@ export class OutreachSessionProgressDto {
   @ApiProperty()
   failed!: number;
 
+  @ApiPropertyOptional()
+  blocked?: number;
+
   @ApiProperty()
   pending!: number;
+}
+
+export class OutreachBurstProgressDto {
+  @ApiProperty()
+  sessionId!: string;
+
+  @ApiProperty()
+  sessionName!: string;
+
+  @ApiProperty()
+  burstIndex!: number;
+
+  @ApiProperty()
+  burstSize!: number;
+
+  @ApiPropertyOptional({ nullable: true })
+  batchId!: string | null;
+
+  @ApiProperty({ enum: ['pending', 'running', 'cooldown', 'completed', 'failed'] })
+  status!: string;
+
+  @ApiProperty()
+  sent!: number;
+
+  @ApiProperty()
+  failed!: number;
+
+  @ApiProperty()
+  blocked!: number;
+
+  @ApiProperty()
+  pending!: number;
+
+  @ApiPropertyOptional({ type: [Object] })
+  contacts?: Array<{ phone: string; name?: string }>;
+
+  @ApiPropertyOptional({ type: [Object] })
+  results?: Array<{ phone: string; name?: string; chatId: string; status: string; errorCode?: string; errorMessage?: string; sentAt?: string }>;
+
+  @ApiPropertyOptional({ nullable: true })
+  startTime!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  endTime!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  estimatedStart!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  estimatedEnd!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  cooldownMs!: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  warmupMs!: number | null;
+}
+
+export class OutreachGlobalTimingDto {
+  @ApiPropertyOptional({ nullable: true })
+  startedAt!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  estimatedFinish!: string | null;
+
+  @ApiProperty()
+  remainingBursts!: number;
+
+  @ApiProperty()
+  totalBursts!: number;
+
+  @ApiProperty()
+  completedBursts!: number;
 }
 
 export class OutreachCampaignResponseDto {
@@ -217,6 +293,12 @@ export class OutreachCampaignResponseDto {
 
   @ApiPropertyOptional({ type: [OutreachSessionProgressDto] })
   sessionProgress?: OutreachSessionProgressDto[] | null;
+
+  @ApiPropertyOptional({ type: [OutreachBurstProgressDto] })
+  burstProgress?: OutreachBurstProgressDto[] | null;
+
+  @ApiPropertyOptional({ type: OutreachGlobalTimingDto })
+  globalTiming?: OutreachGlobalTimingDto | null;
 
   @ApiPropertyOptional({ type: [String], description: 'All batch IDs created during this campaign.' })
   batchIds?: string[] | null;
