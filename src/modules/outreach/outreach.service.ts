@@ -1,15 +1,21 @@
-import { Injectable, BadRequestException, NotFoundException, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SessionService } from '../session/session.service';
-import { Session, SessionStatus } from '../session/entities/session.entity';
+import { Session } from '../session/entities/session.entity';
 import { SessionRestrictionStore } from '../session/session-restriction-store.service';
 import { BulkMessageService } from '../message/bulk-message.service';
 import { BatchStatus } from '../message/entities/message-batch.entity';
 import { OutreachCampaign, OutreachStatus } from './entities/outreach-campaign.entity';
 import { CreateOutreachCampaignDto, OutreachCampaignResponseDto } from './dto/outreach-campaign.dto';
 import {
-  OutreachContact,
   OutreachSession as AllocationSession,
   allocateOutreach,
   warmupAllowanceForAge,
@@ -82,7 +88,7 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     maxPerSessionPerDay?: number,
   ): Promise<{ sessions: Array<AllocationSession & { entity: Session }>; missing: string[] }> {
     const all = await this.sessionService.findAll();
-    const byName = new Map(all.map((s) => [s.name, s]));
+    const byName = new Map(all.map(s => [s.name, s]));
     const missing: string[] = [];
     const resolved: Array<AllocationSession & { entity: Session }> = [];
 
@@ -92,9 +98,7 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
         missing.push(name);
         continue;
       }
-      const ageDays = entity.createdAt
-        ? (Date.now() - new Date(entity.createdAt).getTime()) / 86400000
-        : 0;
+      const ageDays = entity.createdAt ? (Date.now() - new Date(entity.createdAt).getTime()) / 86400000 : 0;
       const warmupCap = warmupAllowanceForAge(warmupSchedule, ageDays);
       const capacity = maxPerSessionPerDay ? Math.min(warmupCap, maxPerSessionPerDay) : warmupCap;
       resolved.push({
@@ -116,7 +120,6 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     const avgDelay = avgDelayMs(strategy);
     const avgCooldown = avgCooldownMs(strategy);
     const base = startedAt ? startedAt.getTime() : Date.now();
-    const perSessionCursor = new Map<string, number>();
     const out: NonNullable<OutreachCampaign['burstProgress']> = [];
     // Interleave estimation: round-robin wave timing — burst 0 of all sessions first, then burst 1, etc.
     // For simple per-session sequential ETA we estimate linearly per session.
@@ -196,29 +199,71 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private computeGlobalTiming(campaign: OutreachCampaign): { startedAt: string | null; estimatedFinish: string | null; remainingBursts: number; totalBursts: number; completedBursts: number } {
-    const totalBursts = campaign.burstProgress?.length ?? campaign.distribution?.reduce((a, s) => a + s.bursts.length, 0) ?? 0;
+  private computeGlobalTiming(campaign: OutreachCampaign): {
+    startedAt: string | null;
+    estimatedFinish: string | null;
+    remainingBursts: number;
+    totalBursts: number;
+    completedBursts: number;
+  } {
+    const totalBursts =
+      campaign.burstProgress?.length ?? campaign.distribution?.reduce((a, s) => a + s.bursts.length, 0) ?? 0;
     const completedBursts = campaign.burstProgress?.filter(b => b.status === 'completed').length ?? 0;
     const remainingBursts = totalBursts - completedBursts;
-    if (!campaign.startedAt) return { startedAt: null, estimatedFinish: null, remainingBursts, totalBursts, completedBursts };
+    if (!campaign.startedAt)
+      return { startedAt: null, estimatedFinish: null, remainingBursts, totalBursts, completedBursts };
     if (campaign.status === 'completed' && campaign.completedAt) {
-      return { startedAt: campaign.startedAt.toISOString(), estimatedFinish: campaign.completedAt.toISOString(), remainingBursts, totalBursts, completedBursts };
+      return {
+        startedAt: campaign.startedAt.toISOString(),
+        estimatedFinish: campaign.completedAt.toISOString(),
+        remainingBursts,
+        totalBursts,
+        completedBursts,
+      };
     }
-    if (!campaign.burstProgress || campaign.burstProgress.length === 0) return { startedAt: campaign.startedAt.toISOString(), estimatedFinish: null, remainingBursts, totalBursts, completedBursts };
+    if (!campaign.burstProgress || campaign.burstProgress.length === 0)
+      return {
+        startedAt: campaign.startedAt.toISOString(),
+        estimatedFinish: null,
+        remainingBursts,
+        totalBursts,
+        completedBursts,
+      };
     // Latest estimatedEnd among pending/running is global ETA (sessions run in parallel, so max)
     const pending = campaign.burstProgress.filter(b => b.status !== 'completed' && b.estimatedEnd);
     if (pending.length === 0) {
-      const last = [...campaign.burstProgress].sort((a, b) => new Date(b.estimatedEnd!).getTime() - new Date(a.estimatedEnd!).getTime())[0];
-      return { startedAt: campaign.startedAt.toISOString(), estimatedFinish: last.estimatedEnd, remainingBursts, totalBursts, completedBursts };
+      const last = [...campaign.burstProgress].sort(
+        (a, b) => new Date(b.estimatedEnd!).getTime() - new Date(a.estimatedEnd!).getTime(),
+      )[0];
+      return {
+        startedAt: campaign.startedAt.toISOString(),
+        estimatedFinish: last.estimatedEnd,
+        remainingBursts,
+        totalBursts,
+        completedBursts,
+      };
     }
-    const maxMs = Math.max(...pending.map(b => new Date(b.estimatedEnd!).getTime()), ...campaign.burstProgress.filter(b => b.endTime).map(b => new Date(b.endTime!).getTime()));
-    return { startedAt: campaign.startedAt.toISOString(), estimatedFinish: new Date(maxMs).toISOString(), remainingBursts, totalBursts, completedBursts };
+    const maxMs = Math.max(
+      ...pending.map(b => new Date(b.estimatedEnd!).getTime()),
+      ...campaign.burstProgress.filter(b => b.endTime).map(b => new Date(b.endTime!).getTime()),
+    );
+    return {
+      startedAt: campaign.startedAt.toISOString(),
+      estimatedFinish: new Date(maxMs).toISOString(),
+      remainingBursts,
+      totalBursts,
+      completedBursts,
+    };
   }
 
   private async createCampaign(dto: CreateOutreachCampaignDto): Promise<OutreachCampaign> {
     const warmupSchedule = dto.strategy?.warmupSchedule ?? DEFAULT_WARMUP_SCHEDULE;
-    const names = dto.sessions.map((s) => s.sessionName);
-    const { sessions, missing } = await this.resolveSessionPool(names, warmupSchedule, dto.strategy?.maxPerSessionPerDay);
+    const names = dto.sessions.map(s => s.sessionName);
+    const { sessions, missing } = await this.resolveSessionPool(
+      names,
+      warmupSchedule,
+      dto.strategy?.maxPerSessionPerDay,
+    );
     if (missing.length) {
       throw new BadRequestException(
         `Unknown session(s): ${missing.join(', ')}. Register/save them first (e.g. via the snapshot feature).`,
@@ -227,17 +272,17 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
 
     const burstSize = dto.strategy?.burstSize ?? DEFAULT_BURST_SIZE;
     const allocation = allocateOutreach(
-      dto.contacts.map((c) => ({ phone: c.phone, name: c.name })),
-      sessions.map((s) => ({ id: s.id, name: s.name, capacity: s.capacity })),
+      dto.contacts.map(c => ({ phone: c.phone, name: c.name })),
+      sessions.map(s => ({ id: s.id, name: s.name, capacity: s.capacity })),
       burstSize,
     );
 
-    const distribution = allocation.sessions.map((s) => ({
+    const distribution = allocation.sessions.map(s => ({
       sessionId: s.id,
       sessionName: s.name,
       assigned: s.assigned,
-      contacts: s.bursts.flatMap((b) => b.contacts),
-      bursts: s.bursts.map((b) => ({ burstIndex: b.burstIndex, contacts: b.contacts })),
+      contacts: s.bursts.flatMap(b => b.contacts),
+      bursts: s.bursts.map(b => ({ burstIndex: b.burstIndex, contacts: b.contacts })),
     }));
 
     const strategy = {
@@ -258,18 +303,18 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
       maxPerSessionPerDay: dto.strategy?.maxPerSessionPerDay,
     };
 
-    const burstProgress = this.buildBurstProgress(distribution as any, strategy as any, null);
+    const burstProgress = this.buildBurstProgress(distribution, strategy, null);
 
     const campaign = this.campaignRepository.create({
       name: dto.name,
       status: OutreachStatus.SCHEDULED,
       messageText: dto.messageText,
       variableMap: dto.variableMap ?? null,
-      contacts: dto.contacts.map((c) => ({ phone: c.phone, name: c.name })),
-      sessions: sessions.map((s) => ({ sessionName: s.name, sessionId: s.id })),
+      contacts: dto.contacts.map(c => ({ phone: c.phone, name: c.name })),
+      sessions: sessions.map(s => ({ sessionName: s.name, sessionId: s.id })),
       strategy,
       distribution,
-      sessionProgress: distribution.map((d) => ({
+      sessionProgress: distribution.map(d => ({
         sessionId: d.sessionId,
         sessionName: d.sessionName,
         total: d.assigned,
@@ -308,10 +353,7 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     return out;
   }
 
-  private async dispatchBurst(
-    campaign: OutreachCampaign,
-    runtime: SessionRuntime,
-  ): Promise<void> {
+  private async dispatchBurst(campaign: OutreachCampaign, runtime: SessionRuntime): Promise<void> {
     const burst = runtime.bursts[runtime.nextBurstIndex];
     if (!burst) return;
     runtime.inFlight = true;
@@ -325,10 +367,16 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.bulkMessage.createBatch(burst.sessionId, {
         batchId,
-        messages: burst.contacts.map((c) => ({
+        messages: burst.contacts.map(c => ({
           chatId: `${normalizePhone(c.phone)}@c.us`,
           type: 'text',
-          content: { text: this.applyVariables(campaign.messageText, { ...campaign.variableMap, name: c.name || c.phone, phone: c.phone }) },
+          content: {
+            text: this.applyVariables(campaign.messageText, {
+              ...campaign.variableMap,
+              name: c.name || c.phone,
+              phone: c.phone,
+            }),
+          },
           variables: { name: c.name || c.phone, phone: c.phone },
         })),
         options: {
@@ -345,7 +393,9 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
       if (fresh) {
         fresh.batchIds = [...(fresh.batchIds ?? []), batchId];
         // Mark burst as running
-        const bp = fresh.burstProgress?.find(b => b.sessionId === burst.sessionId && b.burstIndex === runtime.nextBurstIndex);
+        const bp = fresh.burstProgress?.find(
+          b => b.sessionId === burst.sessionId && b.burstIndex === runtime.nextBurstIndex,
+        );
         if (bp) {
           bp.batchId = batchId;
           bp.status = 'running';
@@ -365,11 +415,15 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
       const isTransient = /not active|not started|ECONNREFUSED|ECONNRESET|timeout/i.test(msg);
       const retryMs = isTransient ? 10_000 : cooldownMs;
       runtime.nextAvailableAt = Date.now() + retryMs;
-      this.logger.warn(`campaign ${campaign.id} session ${runtime.sessionId} burst dispatch failed${isTransient ? ' (transient, retry in 10s)' : ''}: ${msg}`);
+      this.logger.warn(
+        `campaign ${campaign.id} session ${runtime.sessionId} burst dispatch failed${isTransient ? ' (transient, retry in 10s)' : ''}: ${msg}`,
+      );
       // Mark burst as failed pending retry
       const fresh = await this.campaignRepository.findOne({ where: { id: campaign.id } });
       if (fresh?.burstProgress) {
-        const bp = fresh.burstProgress.find(b => b.sessionId === burst.sessionId && b.burstIndex === runtime.nextBurstIndex);
+        const bp = fresh.burstProgress.find(
+          b => b.sessionId === burst.sessionId && b.burstIndex === runtime.nextBurstIndex,
+        );
         if (bp && bp.status === 'pending') {
           // keep pending for retry
         }
@@ -404,10 +458,19 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
               };
             });
             // Infer burst index from batchId
-            const burstIdxMatch = /-(\d+)$/.exec(sr.activeBatchId!);
+            const burstIdxMatch = /-(\d+)$/.exec(sr.activeBatchId);
             const burstIndex = burstIdxMatch ? Number(burstIdxMatch[1]) : sr.nextBurstIndex - 1;
             await this.updateSessionTally(campaign.id, sessionId, sent, failed, blocked);
-            await this.updateBurstProgressOnComplete(campaign.id, sessionId, burstIndex, sent, failed, blocked, results, status);
+            await this.updateBurstProgressOnComplete(
+              campaign.id,
+              sessionId,
+              burstIndex,
+              sent,
+              failed,
+              blocked,
+              results,
+              status,
+            );
             sr.inFlight = false;
             sr.activeBatchId = undefined;
           }
@@ -436,7 +499,14 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     sent: number,
     failed: number,
     blocked: number,
-    results: Array<{ chatId: string; status: string; phone: string; errorCode?: string; errorMessage?: string; sentAt?: string }>,
+    results: Array<{
+      chatId: string;
+      status: string;
+      phone: string;
+      errorCode?: string;
+      errorMessage?: string;
+      sentAt?: string;
+    }>,
     batchStatus: string,
   ): Promise<void> {
     const campaign = await this.campaignRepository.findOne({ where: { id: campaignId } });
@@ -480,7 +550,7 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     const campaign = await this.campaignRepository.findOne({ where: { id: campaignId } });
     if (!campaign) return;
     const progress = campaign.sessionProgress ?? [];
-    const row = progress.find((p) => p.sessionId === sessionId);
+    const row = progress.find(p => p.sessionId === sessionId);
     if (row) {
       row.sent = sent;
       row.failed = failed;
@@ -532,14 +602,16 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
       // Re-hydrate nextBurstIndex from burstProgress (resume)
       let nextIdx = 0;
       if (campaign.burstProgress) {
-        const completed = campaign.burstProgress.filter(b => b.sessionId === sd.sessionId && (b.status === 'completed' || b.status === 'failed')).length;
+        const completed = campaign.burstProgress.filter(
+          b => b.sessionId === sd.sessionId && (b.status === 'completed' || b.status === 'failed'),
+        ).length;
         nextIdx = completed;
         // If a burst is running, mark runtime as inFlight
         const running = campaign.burstProgress.find(b => b.sessionId === sd.sessionId && b.status === 'running');
         if (running) {
           runtime.sessions.set(sd.sessionId, {
             sessionId: sd.sessionId,
-            bursts: sd.bursts.map((b) => ({
+            bursts: sd.bursts.map(b => ({
               burstIndex: b.burstIndex,
               sessionId: sd.sessionId,
               sessionName: sd.sessionName,
@@ -555,7 +627,7 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
       }
       runtime.sessions.set(sd.sessionId, {
         sessionId: sd.sessionId,
-        bursts: sd.bursts.map((b) => ({
+        bursts: sd.bursts.map(b => ({
           burstIndex: b.burstIndex,
           sessionId: sd.sessionId,
           sessionName: sd.sessionName,
@@ -610,7 +682,7 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
         pending: d.assigned,
       }));
       // Rebuild burstProgress with fresh timings anchored at new start
-      campaign.burstProgress = this.buildBurstProgress(campaign.distribution as any, campaign.strategy as any, campaign.startedAt);
+      campaign.burstProgress = this.buildBurstProgress(campaign.distribution, campaign.strategy, campaign.startedAt);
     }
     await this.campaignRepository.save(campaign);
 
@@ -653,7 +725,7 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
   async list(): Promise<OutreachCampaignResponseDto[]> {
     const campaigns = await this.campaignRepository.find({ order: { createdAt: 'DESC' } });
     for (const c of campaigns) this.recomputeEstimates(c);
-    return campaigns.map((c) => this.toResponse(c));
+    return campaigns.map(c => this.toResponse(c));
   }
 
   async executionReport(id: string) {
@@ -663,18 +735,27 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     this.recomputeEstimates(campaign);
 
     const batchIds = campaign.batchIds ?? [];
-    const sessionMap = new Map(campaign.sessions.map((s) => [s.sessionId, s.sessionName]));
+    const sessionMap = new Map(campaign.sessions.map(s => [s.sessionId, s.sessionName]));
     const results: Array<{
       sessionId: string;
       sessionName: string;
       batchId: string;
       status: string;
       progress: { total: number; sent: number; failed: number; pending: number; cancelled: number };
-      recipients: Array<{ chatId: string; phone: string; status: string; messageId?: string; error?: string; errorCode?: string; sentAt?: string; blocked?: boolean }>;
+      recipients: Array<{
+        chatId: string;
+        phone: string;
+        status: string;
+        messageId?: string;
+        error?: string;
+        errorCode?: string;
+        sentAt?: string;
+        blocked?: boolean;
+      }>;
     }> = [];
 
     for (const batchId of batchIds) {
-      const sessionId = [...sessionMap.keys()].find((sid) => batchId.includes(sid.replace(/-/g, '').slice(0, 6)));
+      const sessionId = [...sessionMap.keys()].find(sid => batchId.includes(sid.replace(/-/g, '').slice(0, 6)));
       if (!sessionId) continue;
       try {
         const batch = await this.bulkMessage.getBatchStatus(sessionId, batchId);
@@ -684,7 +765,7 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
           batchId,
           status: batch.status,
           progress: batch.progress,
-          recipients: (batch.results ?? []).map((r) => {
+          recipients: (batch.results ?? []).map(r => {
             const blocked = isBlockedError(r.error?.code, r.error?.message);
             return {
               chatId: r.chatId,
@@ -764,23 +845,25 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
     const globalTiming = this.computeGlobalTiming(campaign);
 
     // Per-session summary scores (reply-rate if available via burstProgress? we use sent rate)
-    const sessionScores = (campaign.sessionProgress ?? []).map(p => {
-      const bursts = (campaign.burstProgress ?? []).filter(b => b.sessionId === p.sessionId);
-      const totalSent = bursts.reduce((a, b) => a + b.sent, 0) || p.sent;
-      const totalBlocked = bursts.reduce((a, b) => a + b.blocked, 0) || (p as any).blocked || 0;
-      const score = p.total > 0 ? Math.round((totalSent / p.total) * 100) : 0;
-      return {
-        sessionId: p.sessionId,
-        sessionName: p.sessionName,
-        total: p.total,
-        sent: totalSent,
-        failed: p.failed,
-        blocked: totalBlocked,
-        pending: p.pending,
-        score,
-        bursts: bursts.length,
-      };
-    }).sort((a, b) => b.score - a.score);
+    const sessionScores = (campaign.sessionProgress ?? [])
+      .map(p => {
+        const bursts = (campaign.burstProgress ?? []).filter(b => b.sessionId === p.sessionId);
+        const totalSent = bursts.reduce((a, b) => a + b.sent, 0) || p.sent;
+        const totalBlocked = bursts.reduce((a, b) => a + b.blocked, 0) || (p as any).blocked || 0;
+        const score = p.total > 0 ? Math.round((totalSent / p.total) * 100) : 0;
+        return {
+          sessionId: p.sessionId,
+          sessionName: p.sessionName,
+          total: p.total,
+          sent: totalSent,
+          failed: p.failed,
+          blocked: totalBlocked,
+          pending: p.pending,
+          score,
+          bursts: bursts.length,
+        };
+      })
+      .sort((a, b) => b.score - a.score);
 
     return {
       campaignId: id,
@@ -816,9 +899,9 @@ export class OutreachService implements OnModuleInit, OnModuleDestroy {
       messageText: campaign.messageText,
       contactCount: campaign.contacts.length,
       sessionCount: campaign.sessions.length,
-      sessionProgress: campaign.sessionProgress as any,
-      burstProgress: campaign.burstProgress as any,
-      globalTiming: this.computeGlobalTiming(campaign) as any,
+      sessionProgress: campaign.sessionProgress,
+      burstProgress: campaign.burstProgress,
+      globalTiming: this.computeGlobalTiming(campaign),
       batchIds: campaign.batchIds,
       distribution: campaign.distribution,
       strategy: campaign.strategy,

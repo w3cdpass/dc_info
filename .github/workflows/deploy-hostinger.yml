@@ -1,0 +1,79 @@
+name: Deploy to Hostinger VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & Deploy via SSH (password)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.19.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            dashboard/package-lock.json
+
+      - name: Install deps
+        run: npm ci --ignore-scripts
+      - name: Postinstall patches + Build
+        run: |
+          node scripts/postinstall.js
+          npm run build
+          cd dashboard && npm ci --ignore-scripts && npm run build
+          cd ..
+
+      - name: Create deploy tar (dist + dashboard)
+        run: |
+          tar -czf deploy.tar.gz dist dashboard/dist package.json package-lock.json .npmrc .nvmrc ecosystem.config.js scripts/docker-entrypoint.sh hostinger-env.txt || tar -czf deploy.tar.gz dist dashboard/dist package.json
+
+      - name: Copy to Hostinger via SCP (password)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT || 22 }}
+          source: "deploy.tar.gz,hostinger-env.txt"
+          target: "~/"
+          overwrite: true
+
+      - name: Deploy on server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT || 22 }}
+          script: |
+            set -e
+            echo ">> Extract deploy"
+            mkdir -p ~/openwa
+            tar -xzf ~/deploy.tar.gz -C ~/openwa --strip-components=0 2>/dev/null || tar -xzf deploy.tar.gz -C ~/openwa
+            cd ~/openwa
+            # ensure .env exists (use hostinger-env.txt if .env missing)
+            if [ ! -f .env ] && [ -f hostinger-env.txt ]; then cp hostinger-env.txt .env; fi
+            if [ ! -f .env ] && [ -f deploy/.env ]; then cp deploy/.env .env; fi
+            echo ">> Install prod deps (prebuilds, no python needed)"
+            npm ci --omit=dev --ignore-scripts
+            node scripts/postinstall.js || true
+            mkdir -p data/sessions data/media data/logs
+            # PM2
+            if command -v pm2 >/dev/null 2>&1; then
+              pm2 describe openwa >/dev/null 2>&1 && pm2 reload openwa --update-env || pm2 start ecosystem.config.js
+              pm2 save
+            else
+              npm i -g pm2
+              pm2 start ecosystem.config.js
+              pm2 save
+              pm2 startup | tail -n 20
+            fi
+            pm2 logs openwa --lines 30 --nostream || true
+            curl -f http://127.0.0.1:${PORT:-10000}/api/health || curl -f http://127.0.0.1:2785/api/health || echo "health check failed - check PORT in .env"

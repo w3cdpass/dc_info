@@ -1,13 +1,7 @@
-import {
-  distributeRoundRobin,
-  chunkIntoBursts,
-  allocateOutreach,
-  warmupAllowanceForAge,
-} from './outreach-allocation';
+import { distributeRoundRobin, chunkIntoBursts, allocateOutreach, warmupAllowanceForAge } from './outreach-allocation';
 
 describe('outreach-allocation', () => {
-  const contacts = (count: number) =>
-    Array.from({ length: count }, (_, i) => ({ phone: `91${9000000000 + i}` }));
+  const contacts = (count: number) => Array.from({ length: count }, (_, i) => ({ phone: `91${9000000000 + i}` }));
 
   describe('distributeRoundRobin', () => {
     it('balances counts to within one across sessions', () => {
@@ -17,7 +11,7 @@ describe('outreach-allocation', () => {
         { id: 'c', name: 'c', capacity: 100 },
       ];
       const by = distributeRoundRobin(contacts(10), sessions);
-      expect([...by.values()].map((l) => l.length).sort()).toEqual([3, 3, 4]);
+      expect([...by.values()].map(l => l.length).sort()).toEqual([3, 3, 4]);
     });
 
     it('caps a session at its capacity and rolls overflow over', () => {
@@ -44,7 +38,7 @@ describe('outreach-allocation', () => {
   describe('chunkIntoBursts', () => {
     it('splits into bursts of at most burstSize', () => {
       const bursts = chunkIntoBursts(contacts(25), 10);
-      expect(bursts.map((b) => b.length)).toEqual([10, 10, 5]);
+      expect(bursts.map(b => b.length)).toEqual([10, 10, 5]);
     });
 
     it('single burst when burstSize <= 0', () => {
@@ -63,17 +57,15 @@ describe('outreach-allocation', () => {
       expect(alloc.totalAssigned).toBe(15);
       expect(alloc.unassigned).toEqual([]);
       // 1st, 3rd, 5th... to a; 2nd, 4th, 6th... to b (8 vs 7)
-      const a = alloc.sessions.find((s) => s.id === 'a')!;
-      const b = alloc.sessions.find((s) => s.id === 'b')!;
+      const a = alloc.sessions.find(s => s.id === 'a')!;
+      const b = alloc.sessions.find(s => s.id === 'b')!;
       expect(a.assigned).toBe(8);
       expect(b.assigned).toBe(7);
       // bursts of 5: a -> 2 bursts, b -> 2 bursts
       expect(a.bursts.length).toBe(2);
       expect(b.bursts.length).toBe(2);
       // burst 0 of a is the 1st, 3rd, 5th, 7th, 9th contacts
-      expect(a.bursts[0].contacts.map((c) => c.phone)).toEqual(
-        [0, 2, 4, 6, 8].map((i) => contacts(15)[i].phone),
-      );
+      expect(a.bursts[0].contacts.map(c => c.phone)).toEqual([0, 2, 4, 6, 8].map(i => contacts(15)[i].phone));
     });
 
     it('reports unassigned when capacity is exhausted', () => {
@@ -84,7 +76,7 @@ describe('outreach-allocation', () => {
       const alloc = allocateOutreach(contacts(10), sessions, 5);
       expect(alloc.totalAssigned).toBe(4);
       expect(alloc.unassigned.length).toBe(6);
-      expect(alloc.sessions.every((s) => s.assigned === s.capacity)).toBe(true);
+      expect(alloc.sessions.every(s => s.assigned === s.capacity)).toBe(true);
     });
   });
 

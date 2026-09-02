@@ -28,7 +28,7 @@ function makeSession(name: string, id: string, ageDays: number): Session {
 
 function makeRepo(initial: OutreachCampaign | null) {
   const mock = repoMock();
-  mock.create.mockImplementation((dto) => ({ ...dto, id: 'camp-1', status: OutreachStatus.SCHEDULED }));
+  mock.create.mockImplementation(dto => ({ ...dto, id: 'camp-1', status: OutreachStatus.SCHEDULED }));
   mock.save.mockImplementation((c: OutreachCampaign) => Promise.resolve(c));
   mock.findOne.mockImplementation(() => Promise.resolve(initial));
   return mock;
@@ -78,7 +78,13 @@ describe('OutreachService', () => {
         variableMap: {},
         contacts: [{ phone: '919000000001' }, { phone: '919000000002' }, { phone: '919000000003' }],
         sessions: [{ sessionName: 'line-1' }, { sessionName: 'line-2' }],
-        strategy: { burstSize: 2, cooldownMinMs: 1000, cooldownMaxMs: 2000, warmupSchedule: [5, 5], pacing: { minDelayMs: 1000, maxDelayMs: 2000 } },
+        strategy: {
+          burstSize: 2,
+          cooldownMinMs: 1000,
+          cooldownMaxMs: 2000,
+          warmupSchedule: [5, 5],
+          pacing: { minDelayMs: 1000, maxDelayMs: 2000 },
+        },
       };
 
       const res = await service.create(dto);
@@ -87,8 +93,8 @@ describe('OutreachService', () => {
       const saved = repo.save.mock.calls[0][0] as OutreachCampaign;
       // round-robin: line-1 gets contacts 0 and 2, line-2 gets contact 1
       const dist = saved.distribution!;
-      expect(dist.find((d) => d.sessionId === 's1')!.assigned).toBe(2);
-      expect(dist.find((d) => d.sessionId === 's2')!.assigned).toBe(1);
+      expect(dist.find(d => d.sessionId === 's1')!.assigned).toBe(2);
+      expect(dist.find(d => d.sessionId === 's2')!.assigned).toBe(1);
     });
 
     it('rejects unknown session names', async () => {

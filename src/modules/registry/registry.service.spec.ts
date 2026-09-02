@@ -28,11 +28,13 @@ function makeSession(name: string, id: string, status = SessionStatus.READY): Se
 }
 
 describe('RegistryService', () => {
-  async function setup(overrides: {
-    existingContacts?: RegistryContact[];
-    incoming?: Message[];
-    sessions?: Session[];
-  } = {}) {
+  async function setup(
+    overrides: {
+      existingContacts?: RegistryContact[];
+      incoming?: Message[];
+      sessions?: Session[];
+    } = {},
+  ) {
     const existingContacts = overrides.existingContacts ?? [];
     const sessions = overrides.sessions ?? [makeSession('line-1', 's1')];
 

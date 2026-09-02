@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -11,26 +12,25 @@ import { SessionStatus, Session } from './entities/session.entity';
 const configService = (root: string) =>
   ({ get: (key: string): unknown => (key === 'engine.sessionSnapshotPath' ? root : undefined) }) as ConfigService;
 
-const makeSession = (overrides: Partial<Session> = {}): Session =>
-  ({
-    id: 'sess-1',
-    name: 'line-1',
-    status: SessionStatus.READY,
-    phone: '917717574707',
-    pushName: 'Infyle Technologies',
-    config: {},
-    proxyUrl: null,
-    proxyType: null,
-    connectedAt: null,
-    lastActiveAt: null,
-    nodeId: null,
-    claimedAt: null,
-    nodeUrl: null,
-    leaseExpiresAt: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    ...overrides,
-  }) as Session;
+const makeSession = (overrides: Partial<Session> = {}): Session => ({
+  id: 'sess-1',
+  name: 'line-1',
+  status: SessionStatus.READY,
+  phone: '917717574707',
+  pushName: 'Infyle Technologies',
+  config: {},
+  proxyUrl: null,
+  proxyType: null,
+  connectedAt: null,
+  lastActiveAt: null,
+  nodeId: null,
+  claimedAt: null,
+  nodeUrl: null,
+  leaseExpiresAt: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...overrides,
+});
 
 const makeEngineFactory = (wwjsRoot: string, baileysRoot: string): EngineFactory =>
   ({

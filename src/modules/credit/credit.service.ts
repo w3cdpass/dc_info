@@ -14,7 +14,14 @@ export class CreditService {
     return this.repo.find({ order: { createdAt: 'DESC' } });
   }
 
-  async create(dto: { name: string; body: string; type?: string; creditCost?: number; mediaUrl?: string; mimetype?: string }): Promise<CreditTemplate> {
+  async create(dto: {
+    name: string;
+    body: string;
+    type?: string;
+    creditCost?: number;
+    mediaUrl?: string;
+    mimetype?: string;
+  }): Promise<CreditTemplate> {
     const e = this.repo.create({
       name: dto.name,
       body: dto.body,

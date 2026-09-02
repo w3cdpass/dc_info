@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Query, Param, HttpCode, HttpStatus, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Query, Param, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { RegistryService } from './registry.service';
 import {
@@ -69,10 +69,7 @@ export class RegistryController {
   @RequireRole(ApiKeyRole.OPERATOR)
   @ApiOperation({ summary: 'Remove a number from the blocked/reported registry.' })
   @ApiResponse({ status: 200 })
-  removeBlocked(
-    @Param('phone') phone: string,
-    @Query('kind') kind?: string,
-  ): Promise<{ removed: boolean }> {
+  removeBlocked(@Param('phone') phone: string, @Query('kind') kind?: string): Promise<{ removed: boolean }> {
     const k = kind === 'reported' ? 'reported' : kind === 'blocked' ? 'blocked' : undefined;
     return this.registry.removeBlocked(phone, k);
   }

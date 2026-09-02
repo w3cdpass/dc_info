@@ -173,15 +173,23 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
 
   async createApiKey(dto: CreateApiKeyDto, actor?: ApiKey): Promise<{ apiKey: ApiKey; rawKey: string }> {
     // Only super admin (Default Admin Key) may create another ADMIN. Other admins can only create demo/operator/viewer.
-    if (dto.role === ApiKeyRole.ADMIN && actor && actor.name !== 'Default Admin Key' && actor.role !== ApiKeyRole.ADMIN) {
+    if (
+      dto.role === ApiKeyRole.ADMIN &&
+      actor &&
+      actor.name !== 'Default Admin Key' &&
+      actor.role !== ApiKeyRole.ADMIN
+    ) {
       throw new ConflictException('Only the main admin can create admin keys');
     }
     if (dto.role === ApiKeyRole.ADMIN && actor && actor.name !== 'Default Admin Key') {
       // Additional check: only the bootstrap key (super admin) may mint admins — prevents privilege escalation.
-      const isSuper = actor.name === 'Default Admin Key' || actor.keyPrefix === (process.env.BOOTSTRAP_KEY_PREFIX || '');
+      const isSuper =
+        actor.name === 'Default Admin Key' || actor.keyPrefix === (process.env.BOOTSTRAP_KEY_PREFIX || '');
       if (!isSuper && actor.role === ApiKeyRole.ADMIN) {
         // Allow but log — soft guard: only infyle@infyle.com should do this. Frontend hides the option for non-super admins.
-        this.logger.warn(`Non-bootstrap admin ${actor.name} creating ADMIN key ${dto.name}`, { action: 'admin_create_by_non_super' });
+        this.logger.warn(`Non-bootstrap admin ${actor.name} creating ADMIN key ${dto.name}`, {
+          action: 'admin_create_by_non_super',
+        });
       }
     }
     // Generate secure random key: owa_k1_<32 bytes hex>
@@ -210,7 +218,7 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
       action: 'api_key_created',
     });
 
-    return { apiKey: saved as any, rawKey };
+    return { apiKey: saved, rawKey };
   }
 
   // Credit helpers
@@ -218,20 +226,22 @@ export class AuthService implements OnModuleInit, OnModuleDestroy {
     const key = await this.findOne(apiKeyId);
     if (key.credits == null) return; // unlimited if no credit cap
     if ((key.creditsUsed ?? 0) + cost > key.credits) {
-      throw new ConflictException(`Insufficient credits: ${key.credits - (key.creditsUsed ?? 0)} remaining, ${cost} required`);
+      throw new ConflictException(
+        `Insufficient credits: ${key.credits - (key.creditsUsed ?? 0)} remaining, ${cost} required`,
+      );
     }
-    await this.apiKeyRepository.update({ id: apiKeyId }, { creditsUsed: (key.creditsUsed ?? 0) + cost } as any);
+    await this.apiKeyRepository.update({ id: apiKeyId }, { creditsUsed: (key.creditsUsed ?? 0) + cost });
   }
 
   async addCredits(id: string, amount: number): Promise<ApiKey> {
     const key = await this.findOne(id);
     const newTotal = (key.credits ?? 0) + amount;
-    await this.apiKeyRepository.update({ id }, { credits: newTotal } as any);
+    await this.apiKeyRepository.update({ id }, { credits: newTotal });
     return this.findOne(id);
   }
 
   async setCreditCost(id: string, costMap: Record<string, number>): Promise<ApiKey> {
-    await this.apiKeyRepository.update({ id }, { creditCost: costMap } as any);
+    await this.apiKeyRepository.update({ id }, { creditCost: costMap });
     return this.findOne(id);
   }
 

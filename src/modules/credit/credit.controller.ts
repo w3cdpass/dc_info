@@ -35,7 +35,7 @@ export class CreditController {
   @Put('templates/:id')
   @RequireRole(ApiKeyRole.ADMIN)
   async update(@Param('id') id: string, @Body() dto: Partial<CreateCreditTemplateDto>) {
-    return this.creditService.update(id, dto as any);
+    return this.creditService.update(id, dto);
   }
 
   @Delete('templates/:id')

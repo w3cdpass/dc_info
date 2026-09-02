@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Req, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Req,
+  HttpCode,
+  HttpStatus,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -67,7 +79,8 @@ export class AuthController {
       credits: (apiKey as any).credits,
       creditsUsed: (apiKey as any).creditsUsed,
       creditCost: (apiKey as any).creditCost,
-      creditsRemaining: (apiKey as any).credits != null ? (apiKey as any).credits - ((apiKey as any).creditsUsed || 0) : undefined,
+      creditsRemaining:
+        (apiKey as any).credits != null ? (apiKey as any).credits - ((apiKey as any).creditsUsed || 0) : undefined,
       apiKey: rawKey,
     };
   }
@@ -225,7 +238,15 @@ export class AuthController {
 
   @Get(':id/credits')
   @ApiOperation({ summary: 'Get credit balance for an API key' })
-  async getCredits(@Param('id') id: string, @CurrentApiKey() actor?: ApiKey): Promise<{ credits: number | null; creditsUsed: number; creditsRemaining: number | null; creditCost: Record<string, number> | null }> {
+  async getCredits(
+    @Param('id') id: string,
+    @CurrentApiKey() actor?: ApiKey,
+  ): Promise<{
+    credits: number | null;
+    creditsUsed: number;
+    creditsRemaining: number | null;
+    creditCost: Record<string, number> | null;
+  }> {
     // Demo can query own, admin can query any
     if (actor && actor.id !== id && actor.role !== ApiKeyRole.ADMIN) throw new UnauthorizedException('Not authorized');
     const k = await this.authService.findOne(id);
@@ -257,13 +278,16 @@ export class AuthController {
       credits: (k as any).credits,
       creditsUsed: (k as any).creditsUsed,
       creditCost: (k as any).creditCost,
-    } as any;
+    };
   }
 
   @Put(':id/credit-cost')
   @RequireRole(ApiKeyRole.ADMIN)
   @ApiOperation({ summary: 'Set per-message credit cost map (admin only)' })
-  async setCreditCost(@Param('id') id: string, @Body() body: { creditCost: Record<string, number> }): Promise<ApiKeyResponseDto> {
+  async setCreditCost(
+    @Param('id') id: string,
+    @Body() body: { creditCost: Record<string, number> },
+  ): Promise<ApiKeyResponseDto> {
     const k = await this.authService.setCreditCost(id, body.creditCost || {});
     return {
       id: k.id,
@@ -280,6 +304,6 @@ export class AuthController {
       credits: (k as any).credits,
       creditsUsed: (k as any).creditsUsed,
       creditCost: (k as any).creditCost,
-    } as any;
+    };
   }
 }

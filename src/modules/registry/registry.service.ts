@@ -228,7 +228,12 @@ export class RegistryService {
   }
 
   /** Record a blocked/reported event into the durable registry (upsert: one row per phone+kind). */
-  async recordBlocked(input: { phone: string; kind?: 'blocked' | 'reported'; sessionName?: string; source?: 'manual' | 'engine' }): Promise<RegistryBlockedDto> {
+  async recordBlocked(input: {
+    phone: string;
+    kind?: 'blocked' | 'reported';
+    sessionName?: string;
+    source?: 'manual' | 'engine';
+  }): Promise<RegistryBlockedDto> {
     const phone = normalizePhone(input.phone ?? '');
     if (!phone) throw new Error('Invalid phone number');
     const kind = input.kind === 'reported' ? BlockKind.REPORTED : BlockKind.BLOCKED;
@@ -253,9 +258,12 @@ export class RegistryService {
   async removeBlocked(phone: string, kind?: 'blocked' | 'reported'): Promise<{ removed: boolean }> {
     const p = normalizePhone(phone);
     if (!p) return { removed: false };
-    const where = kind === 'reported' ? { phone: p, kind: BlockKind.REPORTED }
-      : kind === 'blocked' ? { phone: p, kind: BlockKind.BLOCKED }
-      : { phone: p };
+    const where =
+      kind === 'reported'
+        ? { phone: p, kind: BlockKind.REPORTED }
+        : kind === 'blocked'
+          ? { phone: p, kind: BlockKind.BLOCKED }
+          : { phone: p };
     const res = await this.blocked.delete(where);
     return { removed: (res.affected ?? 0) > 0 };
   }
@@ -326,7 +334,7 @@ export class RegistryService {
     return {
       id: row.id,
       phone: row.phone,
-      kind: row.kind as 'blocked' | 'reported',
+      kind: row.kind,
       sessionName: row.sessionName ?? null,
       source: row.source,
       createdAt: row.createdAt,

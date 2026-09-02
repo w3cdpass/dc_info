@@ -294,7 +294,7 @@ export class BulkMessageService implements OnApplicationBootstrap {
         const key = JSON.stringify(m.content);
         spread.set(key, (spread.get(key) ?? 0) + 1);
       }
-      for (const [key, count] of spread) {
+      for (const [, count] of spread) {
         if (count > flags.bulkMinSpreadRecipients) {
           throw new BadRequestException(
             `Bulk send refused by content-rotation guard: an identical message body would reach ${count} recipients (max ${flags.bulkMinSpreadRecipients}) with no per-recipient variables. Personalize each with {{...}} variables, or split into a smaller batch, to avoid an instant spam ban.`,
@@ -463,7 +463,12 @@ export class BulkMessageService implements OnApplicationBootstrap {
     }
 
     const results: BatchMessageResult[] = batch.results || [];
-    const state: BatchExecutionState = { results, stoppedOnError: false, cancelledByDb: false, stoppedByRestriction: false };
+    const state: BatchExecutionState = {
+      results,
+      stoppedOnError: false,
+      cancelledByDb: false,
+      stoppedByRestriction: false,
+    };
     await this.processBatchMessages(batch, engine, state);
     await this.finalizeBatch(batch, state);
   }
@@ -730,8 +735,7 @@ export class BulkMessageService implements OnApplicationBootstrap {
     // A restriction-triggered halt is a cancellation in the operator's eyes: some sent, the rest
     // deliberately NOT sent. It must not be relabelled COMPLETED just because there was a partial
     // success and no stopOnError, so it folds into the same cancelled/counter-reconcile path.
-    const cancelled =
-      state.cancelledByDb || state.stoppedByRestriction || !this.processingBatches.get(batch.id);
+    const cancelled = state.cancelledByDb || state.stoppedByRestriction || !this.processingBatches.get(batch.id);
     batch.status = resolveFinalBatchStatus(cancelled, state.stoppedOnError, batch.progress);
     if (cancelled) {
       // Reconcile the counters the same way cancelBatch does, so the persisted state is consistent.
@@ -983,7 +987,7 @@ export class BulkMessageService implements OnApplicationBootstrap {
     for (let i = 0; i < messages.length; i += BulkMessageService.PRECHECK_CONCURRENCY) {
       const chunk = messages.slice(i, i + BulkMessageService.PRECHECK_CONCURRENCY);
       const decisions = await Promise.all(
-        chunk.map(async (m) => {
+        chunk.map(async m => {
           const phone = this.recipientPhone(m.chatId);
           if (phone === null) return 'keep' as const; // not phone-addressed; nothing to verify
           try {
@@ -1056,12 +1060,7 @@ export class BulkMessageService implements OnApplicationBootstrap {
    * (capped by SIMULATE_TYPING_MAX_MS); media sends use a short fixed pause since one does not
    * "type out" an attachment.
    */
-  private async simulateBulkTyping(
-    engine: IWhatsAppEngine,
-    chatId: string,
-    type: string,
-    text: string,
-  ): Promise<void> {
+  private async simulateBulkTyping(engine: IWhatsAppEngine, chatId: string, type: string, text: string): Promise<void> {
     const flags = resolveFeatureFlags(this.configService);
     if (!flags.simulateTyping) return;
     const maxMs = flags.simulateTypingMaxMs || 5000;

@@ -50,8 +50,7 @@ export class SupabaseService {
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wamFyaGd3bWRod25pb3FseGRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzA3NzQsImV4cCI6MjEwMzc0Njc3NH0.i1JKhyaJbHYN1D9gX3tnN9ao2oljbLoKxaK9DIeXBsU';
 
     const serviceKey =
-      this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ||
-      process.env.SUPABASE_SERVICE_ROLE_KEY;
+      this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseJs) {
       this.logger.warn('Supabase client not installed — run npm install @supabase/supabase-js');
@@ -101,10 +100,7 @@ export class SupabaseService {
     const normalizedPassword = password.trim();
 
     // 1) Hardcoded super admin — always works even if Supabase is down
-    if (
-      normalizedEmail === HARDCODED_ADMIN.email.toLowerCase() &&
-      normalizedPassword === HARDCODED_ADMIN.password
-    ) {
+    if (normalizedEmail === HARDCODED_ADMIN.email.toLowerCase() && normalizedPassword === HARDCODED_ADMIN.password) {
       return {
         id: 'hardcoded-admin',
         email: HARDCODED_ADMIN.email,
@@ -133,7 +129,7 @@ export class SupabaseService {
       if (!data) return null;
 
       // Support both plain and hashed passwords. Try plain first, then bcrypt if available.
-      const stored = (data as any).password_hash as string | undefined;
+      const stored = data.password_hash as string | undefined;
       if (!stored) return null;
 
       let isValid = false;
@@ -158,16 +154,16 @@ export class SupabaseService {
       void this.client
         .from('admin_users')
         .update({ last_login_at: new Date().toISOString() })
-        .eq('id', (data as any).id)
+        .eq('id', data.id)
         .then(() => {});
 
       return {
-        id: (data as any).id,
-        email: (data as any).email,
-        role: (data as any).role || 'admin',
+        id: data.id,
+        email: data.email,
+        role: data.role || 'admin',
         is_active: true,
-        created_at: (data as any).created_at,
-        last_login_at: (data as any).last_login_at,
+        created_at: data.created_at,
+        last_login_at: data.last_login_at,
       };
     } catch (e) {
       this.logger.warn(`verifyAdminCredentials error: ${String(e)}`);

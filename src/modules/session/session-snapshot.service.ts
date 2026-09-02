@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 import { Injectable, NotFoundException, ConflictException, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
@@ -184,10 +185,12 @@ export class SessionSnapshotService {
       throw error;
     }
 
-    this.logger.log(
-      `Restored auth snapshot '${dto.name}' into new session '${dto.newSessionName}'`,
-      { action: 'snapshot_restore', snapshot: dto.name, sessionName: dto.newSessionName, engines: manifest.engines },
-    );
+    this.logger.log(`Restored auth snapshot '${dto.name}' into new session '${dto.newSessionName}'`, {
+      action: 'snapshot_restore',
+      snapshot: dto.name,
+      sessionName: dto.newSessionName,
+      engines: manifest.engines,
+    });
     return session;
   }
 
@@ -310,10 +313,7 @@ export class SessionSnapshotService {
 
   private assertSafeName(name: string, kind: 'Snapshot' | 'Session'): void {
     if (!isSafeSessionName(name)) {
-      throw new HttpException(
-        `${kind} name can only contain letters, numbers, and hyphens`,
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException(`${kind} name can only contain letters, numbers, and hyphens`, HttpStatus.BAD_REQUEST);
     }
   }
 }

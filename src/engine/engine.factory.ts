@@ -189,7 +189,8 @@ export class EngineFactory implements OnModuleInit {
    * adapter constructs: sessionDataPath resolved, then `session-${name}` appended (mirrors
    * WhatsAppWebJsAdapter.clearLocalAuth).
    */
-  private wwjsAuthDir(sessionName: string): string {    const sessionDataPath = this.configService.get<string>('engine.sessionDataPath') ?? './data/sessions';
+  private wwjsAuthDir(sessionName: string): string {
+    const sessionDataPath = this.configService.get<string>('engine.sessionDataPath') ?? './data/sessions';
     return path.join(path.resolve(sessionDataPath), `session-${sessionName}`);
   }
 

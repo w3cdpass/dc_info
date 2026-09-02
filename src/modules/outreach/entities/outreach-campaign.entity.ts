@@ -1,10 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { jsonColumnType, dateColumnType } from '../../../common/utils/column-types';
 import { DateTransformer } from '../../../common/transformers/date.transformer';
 
@@ -123,7 +117,15 @@ export class OutreachCampaign {
     blocked: number;
     pending: number;
     contacts: Array<{ phone: string; name?: string }>;
-    results: Array<{ phone: string; name?: string; chatId: string; status: string; errorCode?: string; errorMessage?: string; sentAt?: string }>;
+    results: Array<{
+      phone: string;
+      name?: string;
+      chatId: string;
+      status: string;
+      errorCode?: string;
+      errorMessage?: string;
+      sentAt?: string;
+    }>;
     startTime: string | null;
     endTime: string | null;
     estimatedStart: string | null;

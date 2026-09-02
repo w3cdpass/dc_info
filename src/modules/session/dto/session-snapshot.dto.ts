@@ -83,8 +83,7 @@ export class SessionSnapshotResponseDto {
 
   @ApiPropertyOptional({
     example: 'line-2',
-    description:
-      'Whether this snapshot was restored and, if so, the session names it has been cloned into.',
+    description: 'Whether this snapshot was restored and, if so, the session names it has been cloned into.',
   })
   restoredInto?: string[];
 }

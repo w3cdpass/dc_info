@@ -28,7 +28,9 @@ export class AddRegistryTables1786500000000 implements MigrationInterface {
         );
       }
       // Index for reply-tracking lookups and sorted listing.
-      await queryRunner.query(`CREATE INDEX "IDX_registry_contacts_createdAt" ON "registry_contacts" ("created_at")`).catch(() => {});
+      await queryRunner
+        .query(`CREATE INDEX "IDX_registry_contacts_createdAt" ON "registry_contacts" ("created_at")`)
+        .catch(() => {});
     }
 
     if (!(await queryRunner.hasTable('registry_blocked'))) {

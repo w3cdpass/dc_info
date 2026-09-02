@@ -1,18 +1,18 @@
 import { Controller, Get, Post, Delete, Param, Body, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { OutreachService } from './outreach.service';
 import { CurrentApiKey } from '../auth/decorators/auth.decorators';
 import { ApiKey } from '../auth/entities/api-key.entity';
 import { AuthService } from '../auth/auth.service';
-import {
-  CreateOutreachCampaignDto,
-  OutreachCampaignResponseDto,
-} from './dto/outreach-campaign.dto';
+import { CreateOutreachCampaignDto, OutreachCampaignResponseDto } from './dto/outreach-campaign.dto';
 
 @ApiTags('Outreach')
 @Controller('outreach/campaigns')
 export class OutreachController {
-  constructor(private readonly outreach: OutreachService, private readonly authService: AuthService) {}
+  constructor(
+    private readonly outreach: OutreachService,
+    private readonly authService: AuthService,
+  ) {}
 
   @Post()
   @ApiOperation({
@@ -57,8 +57,7 @@ export class OutreachController {
 
   @Get(':id/execution')
   @ApiOperation({
-    summary:
-      'Campaign execution report: per-recipient sent/failed/pending results from all batch statuses.',
+    summary: 'Campaign execution report: per-recipient sent/failed/pending results from all batch statuses.',
   })
   @ApiResponse({ status: 200 })
   execution(@Param('id') id: string) {

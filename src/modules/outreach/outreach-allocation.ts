@@ -66,7 +66,7 @@ export function distributeRoundRobin(
   // approach: first fill each session's round-robin share capped at capacity; leftover contacts are
   // assigned round-robin to sessions with remaining headroom.
   const n = sessions.length;
-  const cap = new Map(sessions.map((s) => [s.id, s.capacity]));
+  const cap = new Map(sessions.map(s => [s.id, s.capacity]));
 
   contacts.forEach((c, i) => {
     const target = sessions[i % n];
@@ -144,7 +144,7 @@ export function allocateOutreach(
   };
 
   for (const [id, list] of bySession) {
-    const meta = sessions.find((s) => s.id === id)!;
+    const meta = sessions.find(s => s.id === id)!;
     const bursts = chunkIntoBursts(list, burstSize).map((ct, i) => ({
       burstIndex: i,
       sessionId: id,

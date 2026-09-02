@@ -1,10 +1,9 @@
-import { Injectable, ConflictException, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { ResellerUser } from './entities/reseller-user.entity';
 import { AuthService } from './auth.service';
-import { ApiKeyRole } from './entities/api-key.entity';
 
 @Injectable()
 export class ResellerService {
@@ -14,7 +13,17 @@ export class ResellerService {
     private readonly authService: AuthService,
   ) {}
 
-  async createDemoUser(dto: { email: string; password: string; role?: string; credits?: number; creditCost?: Record<string, number>; name?: string }, actorEmail?: string): Promise<{ user: ResellerUser; rawKey: string }> {
+  async createDemoUser(
+    dto: {
+      email: string;
+      password: string;
+      role?: string;
+      credits?: number;
+      creditCost?: Record<string, number>;
+      name?: string;
+    },
+    actorEmail?: string,
+  ): Promise<{ user: ResellerUser; rawKey: string }> {
     const email = dto.email.toLowerCase().trim();
     const existing = await this.userRepo.findOne({ where: { email } });
     if (existing) throw new ConflictException('Email already exists');
@@ -29,7 +38,7 @@ export class ResellerService {
       role: role as any,
       credits: dto.credits,
       creditCost: dto.creditCost,
-    } as any);
+    });
     const user = this.userRepo.create({
       email,
       passwordHash,
@@ -63,13 +72,20 @@ export class ResellerService {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
     if (user.apiKeyId) {
-      try { await this.authService.delete(user.apiKeyId); } catch {}
+      try {
+        await this.authService.delete(user.apiKeyId);
+      } catch {
+        // ignore delete failure
+      }
     }
     await this.userRepo.remove(user);
   }
 
   // For AdminAuthController fallback
-  async verifyResellerCredentials(email: string, password: string): Promise<{ id: string; email: string; role: string } | null> {
+  async verifyResellerCredentials(
+    email: string,
+    password: string,
+  ): Promise<{ id: string; email: string; role: string } | null> {
     const res = await this.verify(email, password);
     if (!res) return null;
     return { id: res.user.id, email: res.user.email, role: res.user.role };

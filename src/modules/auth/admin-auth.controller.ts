@@ -40,7 +40,7 @@ export class AdminAuthController {
       throw new UnauthorizedException('Email and password are required');
     }
 
-    let admin = await this.supabaseService.verifyAdminCredentials(email, password);
+    const admin = await this.supabaseService.verifyAdminCredentials(email, password);
     // Fallback to reseller/demo users (local DB) — allows demo login via same form with username/password
     if (!admin) {
       const reseller = await this.resellerService.verifyResellerCredentials(email, password);
@@ -62,7 +62,7 @@ export class AdminAuthController {
     // Prefer the existing bootstrap admin key so the dashboard can keep using X-API-Key header.
     let apiKey: string | null = null;
     try {
-      const raw = readBootstrapKey({ warn: () => {} } as any);
+      const raw = readBootstrapKey({ warn: () => {} });
       if (raw) apiKey = raw;
       if (!apiKey) {
         const p = path.resolve(process.cwd(), 'data', '.api-key');

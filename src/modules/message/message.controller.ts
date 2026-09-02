@@ -124,7 +124,11 @@ export class MessageController {
   })
   @ApiResponse({ status: 409, description: ENGINE_NOT_READY_409 })
   @ApiResponse({ status: 501, description: CUSTOM_LINK_PREVIEW_501 })
-  async sendText(@Param('sessionId') sessionId: string, @Body() dto: SendTextMessageDto, @CurrentApiKey() apiKey?: ApiKey): Promise<MessageResponseDto> {
+  async sendText(
+    @Param('sessionId') sessionId: string,
+    @Body() dto: SendTextMessageDto,
+    @CurrentApiKey() apiKey?: ApiKey,
+  ): Promise<MessageResponseDto> {
     await this.deductCredit(apiKey, 'text');
     return this.messageService.sendText(sessionId, dto);
   }

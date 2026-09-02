@@ -8,12 +8,7 @@ import { MessageModule } from '../message/message.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([OutreachCampaign], 'data'),
-    SessionModule,
-    MessageModule,
-    AuthModule,
-  ],
+  imports: [TypeOrmModule.forFeature([OutreachCampaign], 'data'), SessionModule, MessageModule, AuthModule],
   controllers: [OutreachController],
   providers: [OutreachService],
   exports: [OutreachService],

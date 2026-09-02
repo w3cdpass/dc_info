@@ -336,7 +336,7 @@ export function ApiKeys() {
               </select>
               {!isSuperAdmin && newKey.role === 'admin' && <small style={{ color: '#ef4444' }}>Only infyle@infyle.com can create admin</small>}
               {newKey.role === 'demo' && (
-                <div style={{ marginTop: 12, padding: 12, border: '1px solid #e2e8f0', borderRadius: 8, background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ marginTop:90, padding: 12, border: '1px solid #e2e8f0', borderRadius: 8,  display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <label>Demo email (username for login)</label>
                   <input type="email" value={newKey.email} onChange={e => setNewKey({ ...newKey, email: e.target.value })} placeholder="demo@example.com" />
                   <label>Password (for email login)</label>

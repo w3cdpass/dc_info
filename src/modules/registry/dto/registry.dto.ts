@@ -1,15 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsString,
-  IsArray,
-  IsOptional,
-  IsIn,
-  MaxLength,
-  IsBoolean,
-  ArrayMaxSize,
-  Min,
-  IsInt,
-} from 'class-validator';
+import { IsString, IsArray, IsOptional, IsIn, MaxLength, IsBoolean, ArrayMaxSize, Min, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ToStrictBoolean } from '../../../common/utils/strict-boolean';
 
@@ -54,7 +44,8 @@ export class ImportContactsDto {
   saveToWhatsApp?: boolean;
 
   @ApiPropertyOptional({
-    description: 'The session (number) to mirror-save the imported contacts into, when `saveToWhatsApp` is on. Defaults to the first ready session.',
+    description:
+      'The session (number) to mirror-save the imported contacts into, when `saveToWhatsApp` is on. Defaults to the first ready session.',
     example: 'iuytre-kjuhgf',
   })
   @IsOptional()
@@ -91,7 +82,9 @@ export class ImportContactsResultDto {
   @ApiProperty({ description: 'Numbers skipped because they were already in the local registry.' })
   duplicatesLocal!: number;
 
-  @ApiProperty({ description: 'Numbers skipped because they were already in the WhatsApp addressbook (when the option was on).' })
+  @ApiProperty({
+    description: 'Numbers skipped because they were already in the WhatsApp addressbook (when the option was on).',
+  })
   duplicatesWhatsApp!: number;
 
   @ApiProperty({ description: 'Numbers rejected because they are not valid phone numbers.' })

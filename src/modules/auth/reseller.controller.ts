@@ -30,12 +30,22 @@ export class ResellerController {
   @RequireRole(ApiKeyRole.ADMIN)
   @ApiOperation({ summary: 'Create reseller/demo user with email/password (admin only, demo gets credits)' })
   async create(@Body() dto: CreateResellerDto, @Req() req: Request, @CurrentApiKey() actor?: ApiKey) {
-    const actorEmail = (req as any).adminEmail || (actor as any)?.email || (req.headers as any)['x-admin-email'] as string | undefined || undefined;
+    const actorEmail =
+      (req as any).adminEmail ||
+      (actor as any)?.email ||
+      ((req.headers as any)['x-admin-email'] as string | undefined) ||
+      undefined;
     // Also try sessionStorage email is not available server-side; frontend sends x-admin-email header
     const headerEmail = (req.headers['x-admin-email'] as string) || actorEmail;
     // Fallback to checking if actor is demo: only admin can create
     const result = await this.resellerService.createDemoUser(dto, headerEmail || 'infyle@infyle.com');
-    return { id: result.user.id, email: result.user.email, role: result.user.role, apiKey: result.rawKey, credits: result.user.credits };
+    return {
+      id: result.user.id,
+      email: result.user.email,
+      role: result.user.role,
+      apiKey: result.rawKey,
+      credits: result.user.credits,
+    };
   }
 
   @Post('login')
@@ -44,7 +54,14 @@ export class ResellerController {
   async login(@Body() dto: ResellerLoginDto) {
     const res = await this.resellerService.verify(dto.email, dto.password);
     if (!res) throw new Error('Invalid email or password');
-    return { success: true, email: res.user.email, role: res.user.role, apiKey: res.rawKey, credits: res.user.credits, apiKeyId: res.user.apiKeyId };
+    return {
+      success: true,
+      email: res.user.email,
+      role: res.user.role,
+      apiKey: res.rawKey,
+      credits: res.user.credits,
+      apiKeyId: res.user.apiKeyId,
+    };
   }
 
   @Get('list')

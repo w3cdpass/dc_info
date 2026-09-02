@@ -761,7 +761,7 @@ export class SessionController {
   @ApiOperation({
     summary: 'List saved auth snapshots (backup of connected WhatsApp web clients)',
     description:
-      'Every labelled credential snapshot, newest first. Each snapshot is a copy of a session\'s ' +
+      "Every labelled credential snapshot, newest first. Each snapshot is a copy of a session's " +
       'on-disk WhatsApp credentials and can be restored into a brand-new isolated session later.',
   })
   @ApiResponse({ status: 200, description: 'List of saved snapshots', type: [SessionSnapshotResponseDto] })
@@ -774,7 +774,7 @@ export class SessionController {
   @ApiOperation({
     summary: 'Save (backup) a connected session as an isolated web-client snapshot',
     description:
-      'Copies the session\'s WhatsApp credentials into a labelled snapshot. After this completes the ' +
+      "Copies the session's WhatsApp credentials into a labelled snapshot. After this completes the " +
       'snapshot can be restored into any number of brand-new sessions that reconnect to the same ' +
       'account without a fresh QR scan. Both engine credential shapes (whatsapp-web.js and baileys) ' +
       'are captured when present.',
@@ -826,9 +826,7 @@ export class SessionController {
   @ApiParam({ name: 'name', description: 'Snapshot name' })
   @ApiResponse({ status: 200, description: 'Snapshot deleted', type: DeleteSessionSnapshotResponseDto })
   @ApiResponse({ status: 404, description: 'Snapshot not found' })
-  async deleteSnapshot(
-    @Param('name') name: string,
-  ): Promise<DeleteSessionSnapshotResponseDto> {
+  async deleteSnapshot(@Param('name') name: string): Promise<DeleteSessionSnapshotResponseDto> {
     return this.sessionSnapshotService.remove(name);
   }
 

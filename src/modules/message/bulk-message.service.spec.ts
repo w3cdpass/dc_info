@@ -374,16 +374,13 @@ describe('BulkMessageService.processBatch', () => {
   it('preCheckNumbers leaves groups and privacy (lid) recipients untouched', async () => {
     repo.findOne.mockResolvedValue(null);
     (engine.getNumberId as jest.Mock).mockResolvedValue(null); // would drop phone-addressed items
-    const batch = await service.createBatch(
-      's1',
-      {
-        messages: [
-          { chatId: '123456789@g.us', type: 'text', content: { text: 'hi' } },
-          { chatId: 'deadbeef@lid', type: 'text', content: { text: 'hi' } },
-        ],
-        options: { preCheckNumbers: true },
-      } as never,
-    );
+    const batch = await service.createBatch('s1', {
+      messages: [
+        { chatId: '123456789@g.us', type: 'text', content: { text: 'hi' } },
+        { chatId: 'deadbeef@lid', type: 'text', content: { text: 'hi' } },
+      ],
+      options: { preCheckNumbers: true },
+    } as never);
     expect(batch.messages).toHaveLength(2); // neither is phone-addressed, so neither is verified/dropped
     expect(engine.getNumberId).not.toHaveBeenCalled();
   });

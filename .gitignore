@@ -85,5 +85,5 @@ _docs/
 *.tsbuildinfo
 .env.production
 .env.production.full
-
 deploy
+.githubworktrees

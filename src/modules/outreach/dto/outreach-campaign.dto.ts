@@ -2,7 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
-  IsIn,
   IsNumber,
   IsObject,
   IsOptional,
@@ -53,8 +52,7 @@ class OutreachPacingDto {
 
 class OutreachStrategyDto {
   @ApiPropertyOptional({
-    description:
-      'Recipients one session sends before cooling down. 0 = single burst for the whole share. Default 10.',
+    description: 'Recipients one session sends before cooling down. 0 = single burst for the whole share. Default 10.',
   })
   @IsOptional()
   @IsNumber()
@@ -234,7 +232,15 @@ export class OutreachBurstProgressDto {
   contacts?: Array<{ phone: string; name?: string }>;
 
   @ApiPropertyOptional({ type: [Object] })
-  results?: Array<{ phone: string; name?: string; chatId: string; status: string; errorCode?: string; errorMessage?: string; sentAt?: string }>;
+  results?: Array<{
+    phone: string;
+    name?: string;
+    chatId: string;
+    status: string;
+    errorCode?: string;
+    errorMessage?: string;
+    sentAt?: string;
+  }>;
 
   @ApiPropertyOptional({ nullable: true })
   startTime!: string | null;
