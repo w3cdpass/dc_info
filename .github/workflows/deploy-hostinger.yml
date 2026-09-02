@@ -32,6 +32,18 @@ jobs:
           cd ..
           ls -lh dist/main.js dashboard/dist/index.html
 
+      - name: Prepare deploy files (fix gitignored deploy/ not in checkout)
+        run: |
+          # deploy/ is gitignored, so create needed files at repo root
+          if [ ! -f ecosystem.config.js ]; then
+            if [ -f deploy/ecosystem.config.js ]; then cp deploy/ecosystem.config.js ./ecosystem.config.js; else echo "module.exports={apps:[{name:'openwa',script:'./dist/main.js',instances:1,exec_mode:'fork',env:{NODE_ENV:'production',PORT:10000}}]}" > ecosystem.config.js; fi
+          fi
+          if [ ! -f hostinger-env.txt ] && [ -f .env.production.full ]; then cp .env.production.full hostinger-env.txt; fi
+          if [ ! -f hostinger-env.txt ] && [ -f deploy/.env.production ]; then cp deploy/.env.production hostinger-env.txt; fi
+          if [ ! -f hostinger-env.txt ]; then echo "NODE_ENV=production" > hostinger-env.txt; echo "PORT=10000" >> hostinger-env.txt; fi
+          ls -lh ecosystem.config.js hostinger-env.txt .env.production 2>&1 | head -n 20
+          echo "--- deploy files ready ---"
+
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
@@ -56,17 +68,18 @@ jobs:
           PORT=${PORT:-21}
           # Fallback: if FTP_* empty, use HOST/USERNAME/PASSWORD as FTP
           if [ -z "$HOST" ]; then echo "::error::Set FTP_HOST or HOST secret (hPanel → Files → FTP Accounts → Host)"; exit 1; fi
-          echo "FTP $USER@$HOST:$PORT"
+          echo "FTP $USER@$HOST:$PORT (if 530 check hPanel → FTP Accounts → Host is srv*.main-hosting.eu, User is uXXXXXXXX, not root/IP)"
           # Hostinger shared: FTP host is like srv123.main-hosting.eu or ftp.hostinger.com, NOT the site IP
           # Upload to Node app root — adjust TARGET if your hPanel → Node.js → Application root is different
           # For lightslategrey-dove-787390.hostingersite.com, Hostinger's Node app root is ~/domains/lightslategrey-dove-787390.hostingersite.com
           # We upload dist + dashboard/dist + package files; .env is created from hostinger-env.txt if missing
+          # Use proper quoting for password with special chars
           lftp -c "
             set ftp:ssl-allow yes
             set ssl:verify-certificate no
             set net:timeout 30
             set net:max-retries 2
-            open -u $USER,$PASS -p $PORT $HOST
+            open -u \"$USER\",\"$PASS\" -p $PORT $HOST
             mirror --reverse --verbose --overwrite --parallel=4 \
               --exclude node_modules/ --exclude .git/ --exclude data/ \
               ./dist /domains/lightslategrey-dove-787390.hostingersite.com/dist
@@ -76,9 +89,8 @@ jobs:
             put -O /domains/lightslategrey-dove-787390.hostingersite.com package-lock.json
             put -O /domains/lightslategrey-dove-787390.hostingersite.com .npmrc
             put -O /domains/lightslategrey-dove-787390.hostingersite.com .nvmrc
-            put -O /domains/lightslategrey-dove-787390.hostingersite.com deploy/ecosystem.config.js
+            put -O /domains/lightslategrey-dove-787390.hostingersite.com ecosystem.config.js
             put hostinger-env.txt -o /domains/lightslategrey-dove-787390.hostingersite.com/.env
-            put deploy/.env.production -o /domains/lightslategrey-dove-787390.hostingersite.com/.env.production
             bye
           " || {
             echo "::error::FTP mirror failed - check FTP_HOST (use srv*.main-hosting.eu, not IP), FTP_USERNAME (uXXXXXXXX), FTP_PASSWORD, FTP_PORT=21"
