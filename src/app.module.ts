@@ -233,7 +233,14 @@ if (dashboardServingEnabled && dashboardBuildPresent) {
 
             ssl: configService.get<boolean>('dataDatabase.ssl', false)
               ? {
-                  rejectUnauthorized: configService.get<boolean>('dataDatabase.sslRejectUnauthorized', true),
+                  rejectUnauthorized: (() => {
+                    const v = configService.get<boolean>('dataDatabase.sslRejectUnauthorized');
+                    if (v === false || String(process.env.DATABASE_SSL_REJECT_UNAUTHORIZED).toLowerCase() === 'false') return false;
+                    // Supabase uses self-signed chain via pgbouncer — must not verify
+                    const host = configService.get<string>('dataDatabase.host') || '';
+                    if (host.includes('supabase.co')) return false;
+                    return v ?? false;
+                  })(),
                 }
               : false,
 
