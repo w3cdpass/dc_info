@@ -51,20 +51,22 @@ jobs:
           FTP_USERNAME: ${{ secrets.FTP_USERNAME || secrets.USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD || secrets.PASSWORD }}
           FTP_PORT: ${{ secrets.FTP_PORT || secrets.PORT }}
+          FTP_PATH: ${{ secrets.FTP_PATH || 'public_html' }}
         run: |
           set -e
           HOST=$FTP_HOST
+          HOST=${HOST#ftp://}
           USER=$FTP_USERNAME
           PASS=$FTP_PASSWORD
           PORT=${FTP_PORT:-21}
+          DEPLOY_PATH=${FTP_PATH:-public_html}
           if [ -z "$HOST" ] || [ -z "$USER" ] || [ -z "$PASS" ]; then
             echo "::error::Set FTP_HOST, FTP_USERNAME, and FTP_PASSWORD GitHub secrets from hPanel → Files → FTP Accounts → View"
             exit 1
           fi
-          echo "FTP $USER@$HOST:$PORT (Hostinger FTP host must be srv*.main-hosting.eu; username is the hPanel FTP account, not root or an IP)"
-          # Hostinger shared: FTP host is like srv123.main-hosting.eu (hPanel → FTP Accounts → Host), Port 21, User uXXXXXXXX
-          # For hostingersite.com Cloud, Node app root is domains/lightsalmon-hummingbird-788680.hostingersite.com (relative to FTP root, NO leading /)
-          # FTP is chrooted to /home/uXXXX, so use relative path "domains/..." not "/domains/..."
+          echo "FTP $USER@$HOST:$PORT (using the exact Hostinger FTP host; username is the FTP account, not root)"
+          # Use the exact FTP Host shown in hPanel, Port 21, and the FTP account username.
+          # The supplied FTP account is rooted at public_html; FTP_PATH can override that directory.
           # Use proper quoting for password with special chars, passive mode for Hostinger firewall
           lftp -c "
             set ftp:ssl-allow yes
@@ -75,21 +77,21 @@ jobs:
             set net:max-retries 2
             set net:reconnect-interval-base 2
             open -u \"$USER\",\"$PASS\" -p $PORT $HOST
-            mkdir -p domains/lightsalmon-hummingbird-788680.hostingersite.com/dist
-            mkdir -p domains/lightsalmon-hummingbird-788680.hostingersite.com/dashboard/dist
+            mkdir -p $DEPLOY_PATH/dist
+            mkdir -p $DEPLOY_PATH/dashboard/dist
             mirror --reverse --verbose --overwrite --parallel=2 --continue \
               --exclude node_modules/ --exclude .git/ --exclude data/ \
-              ./dist domains/lightsalmon-hummingbird-788680.hostingersite.com/dist
+              ./dist $DEPLOY_PATH/dist
             mirror --reverse --verbose --overwrite --parallel=2 --continue \
-              ./dashboard/dist domains/lightsalmon-hummingbird-788680.hostingersite.com/dashboard/dist
-            put -O domains/lightsalmon-hummingbird-788680.hostingersite.com package.json
-            put -O domains/lightsalmon-hummingbird-788680.hostingersite.com package-lock.json
-            put -O domains/lightsalmon-hummingbird-788680.hostingersite.com .npmrc
-            put -O domains/lightsalmon-hummingbird-788680.hostingersite.com .nvmrc
-            put -O domains/lightsalmon-hummingbird-788680.hostingersite.com ecosystem.config.js
+              ./dashboard/dist $DEPLOY_PATH/dashboard/dist
+            put -O $DEPLOY_PATH package.json
+            put -O $DEPLOY_PATH package-lock.json
+            put -O $DEPLOY_PATH .npmrc
+            put -O $DEPLOY_PATH .nvmrc
+            put -O $DEPLOY_PATH ecosystem.config.js
             bye
           " || {
-            echo "::error::FTP mirror failed - check FTP_HOST (use srv*.main-hosting.eu, not IP), FTP_USERNAME, FTP_PASSWORD, FTP_PORT=21"
+            echo "::error::FTP mirror failed - check FTP_HOST, FTP_USERNAME, FTP_PASSWORD, and FTP_PORT=21 in the production environment"
             echo "Find correct values: hPanel → Websites → Dashboard → Files → FTP Accounts → View"
             exit 1
           }
