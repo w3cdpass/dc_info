@@ -44,17 +44,17 @@ jobs:
       - name: Install lftp
         run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: Deploy via FTP (uses your stored secrets HOST/USERNAME/PASSWORD)
+      - name: Deploy via FTP
         env:
           FTP_HOST: ${{ secrets.FTP_HOST || secrets.HOST }}
-          FTP_USER: ${{ secrets.FTP_USERNAME || secrets.USERNAME }}
-          FTP_PASS: ${{ secrets.FTP_PASSWORD || secrets.PASSWORD }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME || secrets.USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD || secrets.PASSWORD }}
           FTP_PORT: ${{ secrets.FTP_PORT || secrets.PORT }}
         run: |
           set -e
           HOST=$FTP_HOST
-          USER=$FTP_USER
-          PASS=$FTP_PASS
+          USER=$FTP_USERNAME
+          PASS=$FTP_PASSWORD
           PORT=${FTP_PORT:-21}
           if [ -z "$HOST" ] || [ -z "$USER" ] || [ -z "$PASS" ]; then
             echo "::error::Set FTP_HOST, FTP_USERNAME, and FTP_PASSWORD GitHub secrets from hPanel → Files → FTP Accounts → View"
