@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "npx nest build",
-    "build:all": "npx nest build && npm run dashboard:build",
+    "build:all": "npx nest build && npm run dashboard:build && node scripts/copy-dashboard-dist.mjs",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"**/*.md\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"**/*.md\"",
     "start": "nest start",
