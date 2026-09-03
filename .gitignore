@@ -87,3 +87,11 @@ _docs/
 .env.production.full
 deploy
 .githubworktrees
+# Hostinger deploy artifacts - do not push
+openwa-hostinger-*.zip
+openwa-hostinger-*.tar.gz
+openwa-source-hostinger.*
+hostinger-env.txt
+*.tar.gz
+*.zip
+!src/**/*.zip

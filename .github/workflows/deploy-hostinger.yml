@@ -69,28 +69,32 @@ jobs:
           # Fallback: if FTP_* empty, use HOST/USERNAME/PASSWORD as FTP
           if [ -z "$HOST" ]; then echo "::error::Set FTP_HOST or HOST secret (hPanel → Files → FTP Accounts → Host)"; exit 1; fi
           echo "FTP $USER@$HOST:$PORT (if 530 check hPanel → FTP Accounts → Host is srv*.main-hosting.eu, User is uXXXXXXXX, not root/IP)"
-          # Hostinger shared: FTP host is like srv123.main-hosting.eu or ftp.hostinger.com, NOT the site IP
-          # Upload to Node app root — adjust TARGET if your hPanel → Node.js → Application root is different
-          # For lightslategrey-dove-787390.hostingersite.com, Hostinger's Node app root is ~/domains/lightslategrey-dove-787390.hostingersite.com
-          # We upload dist + dashboard/dist + package files; .env is created from hostinger-env.txt if missing
-          # Use proper quoting for password with special chars
+          # Hostinger shared: FTP host is like srv123.main-hosting.eu (hPanel → FTP Accounts → Host), Port 21, User uXXXXXXXX
+          # For hostingersite.com Cloud, Node app root is domains/lightslategrey-dove-787390.hostingersite.com (relative to FTP root, NO leading /)
+          # FTP is chrooted to /home/uXXXX, so use relative path "domains/..." not "/domains/..."
+          # Use proper quoting for password with special chars, passive mode for Hostinger firewall
           lftp -c "
             set ftp:ssl-allow yes
+            set ftp:ssl-force no
             set ssl:verify-certificate no
+            set ftp:passive-mode on
             set net:timeout 30
             set net:max-retries 2
+            set net:reconnect-interval-base 2
             open -u \"$USER\",\"$PASS\" -p $PORT $HOST
-            mirror --reverse --verbose --overwrite --parallel=4 \
+            mkdir -p domains/lightslategrey-dove-787390.hostingersite.com/dist
+            mkdir -p domains/lightslategrey-dove-787390.hostingersite.com/dashboard/dist
+            mirror --reverse --verbose --overwrite --parallel=2 --continue \
               --exclude node_modules/ --exclude .git/ --exclude data/ \
-              ./dist /domains/lightslategrey-dove-787390.hostingersite.com/dist
-            mirror --reverse --verbose --overwrite --parallel=4 \
-              ./dashboard/dist /domains/lightslategrey-dove-787390.hostingersite.com/dashboard/dist
-            put -O /domains/lightslategrey-dove-787390.hostingersite.com package.json
-            put -O /domains/lightslategrey-dove-787390.hostingersite.com package-lock.json
-            put -O /domains/lightslategrey-dove-787390.hostingersite.com .npmrc
-            put -O /domains/lightslategrey-dove-787390.hostingersite.com .nvmrc
-            put -O /domains/lightslategrey-dove-787390.hostingersite.com ecosystem.config.js
-            put hostinger-env.txt -o /domains/lightslategrey-dove-787390.hostingersite.com/.env
+              ./dist domains/lightslategrey-dove-787390.hostingersite.com/dist
+            mirror --reverse --verbose --overwrite --parallel=2 --continue \
+              ./dashboard/dist domains/lightslategrey-dove-787390.hostingersite.com/dashboard/dist
+            put -O domains/lightslategrey-dove-787390.hostingersite.com package.json
+            put -O domains/lightslategrey-dove-787390.hostingersite.com package-lock.json
+            put -O domains/lightslategrey-dove-787390.hostingersite.com .npmrc
+            put -O domains/lightslategrey-dove-787390.hostingersite.com .nvmrc
+            put -O domains/lightslategrey-dove-787390.hostingersite.com ecosystem.config.js
+            put hostinger-env.txt -o domains/lightslategrey-dove-787390.hostingersite.com/.env
             bye
           " || {
             echo "::error::FTP mirror failed - check FTP_HOST (use srv*.main-hosting.eu, not IP), FTP_USERNAME (uXXXXXXXX), FTP_PASSWORD, FTP_PORT=21"
