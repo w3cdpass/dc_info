@@ -54,6 +54,25 @@ describe('CreateAuthAuditTables migration', () => {
     await qr.release();
   });
 
+  it('uses PostgreSQL-compatible timestamp and boolean defaults', async () => {
+    const queries: string[] = [];
+    const qr = {
+      connection: { options: { type: 'postgres' } },
+      query: async (sql: string) => {
+        queries.push(sql);
+        return [];
+      },
+    } as never;
+
+    await new CreateAuthAuditTables1779900000000().up(qr);
+
+    expect(queries[0]).toContain('"isActive" boolean NOT NULL DEFAULT (true)');
+    expect(queries[0]).toContain('"expiresAt" timestamp');
+    expect(queries[0]).toContain('DEFAULT CURRENT_TIMESTAMP');
+    expect(queries[0]).not.toContain('datetime');
+    expect(queries[2]).toContain('"createdAt" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP');
+  });
+
   it('down() drops both tables', async () => {
     const qr = ds.createQueryRunner();
     const migration = new CreateAuthAuditTables1779900000000();

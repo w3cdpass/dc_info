@@ -14,6 +14,11 @@ export class CreateAuthAuditTables1779900000000 implements MigrationInterface {
   name = 'CreateAuthAuditTables1779900000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    const isPostgres = queryRunner.connection.options.type === 'postgres';
+    const timestampType = isPostgres ? 'timestamp' : 'datetime';
+    const nowDefault = isPostgres ? 'CURRENT_TIMESTAMP' : "(datetime('now'))";
+    const booleanTrue = isPostgres ? 'true' : '1';
+
     await queryRunner.query(
       `CREATE TABLE IF NOT EXISTS "api_keys" (` +
         `"id" varchar PRIMARY KEY NOT NULL, ` +
@@ -23,12 +28,12 @@ export class CreateAuthAuditTables1779900000000 implements MigrationInterface {
         `"role" varchar(20) NOT NULL DEFAULT ('operator'), ` +
         `"allowedIps" text, ` +
         `"allowedSessions" text, ` +
-        `"isActive" boolean NOT NULL DEFAULT (1), ` +
-        `"expiresAt" datetime, ` +
-        `"lastUsedAt" datetime, ` +
+        `"isActive" boolean NOT NULL DEFAULT (${booleanTrue}), ` +
+        `"expiresAt" ${timestampType}, ` +
+        `"lastUsedAt" ${timestampType}, ` +
         `"usageCount" integer NOT NULL DEFAULT (0), ` +
-        `"createdAt" datetime NOT NULL DEFAULT (datetime('now')), ` +
-        `"updatedAt" datetime NOT NULL DEFAULT (datetime('now'))` +
+        `"createdAt" ${timestampType} NOT NULL DEFAULT ${nowDefault}, ` +
+        `"updatedAt" ${timestampType} NOT NULL DEFAULT ${nowDefault}` +
         `)`,
     );
     await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_api_keys_keyHash" ON "api_keys" ("keyHash")`);
@@ -49,7 +54,7 @@ export class CreateAuthAuditTables1779900000000 implements MigrationInterface {
         `"statusCode" integer, ` +
         `"metadata" text, ` +
         `"errorMessage" text, ` +
-        `"createdAt" datetime NOT NULL DEFAULT (datetime('now'))` +
+        `"createdAt" ${timestampType} NOT NULL DEFAULT ${nowDefault}` +
         `)`,
     );
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_audit_logs_action" ON "audit_logs" ("action")`);
