@@ -1,4 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import { dateColumnType } from '../../../common/utils/column-types';
+import { DateTransformer } from '../../../common/transformers/date.transformer';
 
 export enum ApiKeyRole {
   ADMIN = 'admin',
@@ -40,10 +42,10 @@ export class ApiKey {
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: dateColumnType(), nullable: true, transformer: DateTransformer })
   expiresAt!: Date | null;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: dateColumnType(), nullable: true, transformer: DateTransformer })
   lastUsedAt!: Date | null;
 
   @Column({ type: 'int', default: 0 })
