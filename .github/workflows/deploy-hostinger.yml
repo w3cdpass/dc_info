@@ -38,10 +38,7 @@ jobs:
           if [ ! -f ecosystem.config.js ]; then
             if [ -f deploy/ecosystem.config.js ]; then cp deploy/ecosystem.config.js ./ecosystem.config.js; else echo "module.exports={apps:[{name:'openwa',script:'./dist/main.js',instances:1,exec_mode:'fork',env:{NODE_ENV:'production',PORT:10000}}]}" > ecosystem.config.js; fi
           fi
-          if [ ! -f hostinger-env.txt ] && [ -f .env.production.full ]; then cp .env.production.full hostinger-env.txt; fi
-          if [ ! -f hostinger-env.txt ] && [ -f deploy/.env.production ]; then cp deploy/.env.production hostinger-env.txt; fi
-          if [ ! -f hostinger-env.txt ]; then echo "NODE_ENV=production" > hostinger-env.txt; echo "PORT=10000" >> hostinger-env.txt; fi
-          ls -lh ecosystem.config.js hostinger-env.txt .env.production 2>&1 | head -n 20
+          ls -lh ecosystem.config.js .env.production 2>&1 | head -n 20
           echo "--- deploy files ready ---"
 
       - name: Install lftp
@@ -49,28 +46,23 @@ jobs:
 
       - name: Deploy via FTP (uses your stored secrets HOST/USERNAME/PASSWORD)
         env:
-          FTP_HOST: ${{ secrets.HOST }}
-          FTP_USER: ${{ secrets.USERNAME }}
-          FTP_PASS: ${{ secrets.PASSWORD }}
-          FTP_PORT: ${{ secrets.PORT }}
-          # fallback if you set FTP_HOST etc separately
-          ALT_HOST: ${{ secrets.FTP_HOST }}
-          ALT_USER: ${{ secrets.FTP_USERNAME }}
-          ALT_PASS: ${{ secrets.FTP_PASSWORD }}
-          ALT_PORT: ${{ secrets.FTP_PORT }}
+          FTP_HOST: ${{ secrets.FTP_HOST || secrets.HOST }}
+          FTP_USER: ${{ secrets.FTP_USERNAME || secrets.USERNAME }}
+          FTP_PASS: ${{ secrets.FTP_PASSWORD || secrets.PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT || secrets.PORT }}
         run: |
           set -e
-          # Use FTP_* if set, else HOST/USERNAME/PASSWORD (you set FTP creds in HOST)
-          HOST=${ALT_HOST:-$FTP_HOST}
-          USER=${ALT_USER:-$FTP_USER}
-          PASS=${ALT_PASS:-$FTP_PASS}
-          PORT=${ALT_PORT:-${FTP_PORT:-$PORT}}
-          PORT=${PORT:-21}
-          # Fallback: if FTP_* empty, use HOST/USERNAME/PASSWORD as FTP
-          if [ -z "$HOST" ]; then echo "::error::Set FTP_HOST or HOST secret (hPanel → Files → FTP Accounts → Host)"; exit 1; fi
-          echo "FTP $USER@$HOST:$PORT (if 530 check hPanel → FTP Accounts → Host is srv*.main-hosting.eu, User is uXXXXXXXX, not root/IP)"
+          HOST=$FTP_HOST
+          USER=$FTP_USER
+          PASS=$FTP_PASS
+          PORT=${FTP_PORT:-21}
+          if [ -z "$HOST" ] || [ -z "$USER" ] || [ -z "$PASS" ]; then
+            echo "::error::Set FTP_HOST, FTP_USERNAME, and FTP_PASSWORD GitHub secrets from hPanel → Files → FTP Accounts → View"
+            exit 1
+          fi
+          echo "FTP $USER@$HOST:$PORT (Hostinger FTP host must be srv*.main-hosting.eu; username is the hPanel FTP account, not root or an IP)"
           # Hostinger shared: FTP host is like srv123.main-hosting.eu (hPanel → FTP Accounts → Host), Port 21, User uXXXXXXXX
-          # For hostingersite.com Cloud, Node app root is domains/lightslategrey-dove-787390.hostingersite.com (relative to FTP root, NO leading /)
+          # For hostingersite.com Cloud, Node app root is domains/lightsalmon-hummingbird-788680.hostingersite.com (relative to FTP root, NO leading /)
           # FTP is chrooted to /home/uXXXX, so use relative path "domains/..." not "/domains/..."
           # Use proper quoting for password with special chars, passive mode for Hostinger firewall
           lftp -c "
@@ -82,26 +74,25 @@ jobs:
             set net:max-retries 2
             set net:reconnect-interval-base 2
             open -u \"$USER\",\"$PASS\" -p $PORT $HOST
-            mkdir -p domains/lightslategrey-dove-787390.hostingersite.com/dist
-            mkdir -p domains/lightslategrey-dove-787390.hostingersite.com/dashboard/dist
+            mkdir -p domains/lightsalmon-hummingbird-788680.hostingersite.com/dist
+            mkdir -p domains/lightsalmon-hummingbird-788680.hostingersite.com/dashboard/dist
             mirror --reverse --verbose --overwrite --parallel=2 --continue \
               --exclude node_modules/ --exclude .git/ --exclude data/ \
-              ./dist domains/lightslategrey-dove-787390.hostingersite.com/dist
+              ./dist domains/lightsalmon-hummingbird-788680.hostingersite.com/dist
             mirror --reverse --verbose --overwrite --parallel=2 --continue \
-              ./dashboard/dist domains/lightslategrey-dove-787390.hostingersite.com/dashboard/dist
-            put -O domains/lightslategrey-dove-787390.hostingersite.com package.json
-            put -O domains/lightslategrey-dove-787390.hostingersite.com package-lock.json
-            put -O domains/lightslategrey-dove-787390.hostingersite.com .npmrc
-            put -O domains/lightslategrey-dove-787390.hostingersite.com .nvmrc
-            put -O domains/lightslategrey-dove-787390.hostingersite.com ecosystem.config.js
-            put hostinger-env.txt -o domains/lightslategrey-dove-787390.hostingersite.com/.env
+              ./dashboard/dist domains/lightsalmon-hummingbird-788680.hostingersite.com/dashboard/dist
+            put -O domains/lightsalmon-hummingbird-788680.hostingersite.com package.json
+            put -O domains/lightsalmon-hummingbird-788680.hostingersite.com package-lock.json
+            put -O domains/lightsalmon-hummingbird-788680.hostingersite.com .npmrc
+            put -O domains/lightsalmon-hummingbird-788680.hostingersite.com .nvmrc
+            put -O domains/lightsalmon-hummingbird-788680.hostingersite.com ecosystem.config.js
             bye
           " || {
-            echo "::error::FTP mirror failed - check FTP_HOST (use srv*.main-hosting.eu, not IP), FTP_USERNAME (uXXXXXXXX), FTP_PASSWORD, FTP_PORT=21"
+            echo "::error::FTP mirror failed - check FTP_HOST (use srv*.main-hosting.eu, not IP), FTP_USERNAME, FTP_PASSWORD, FTP_PORT=21"
             echo "Find correct values: hPanel → Websites → Dashboard → Files → FTP Accounts → View"
             exit 1
           }
           echo "Upload done - now trigger Hostinger Node restart (if using hPanel Node.js, it auto-restarts on file change) or add SSH PM2 step for VPS"
 
       - name: Post-deploy info
-        run: echo "Deployed to Hostinger FTP. If Node.js app is enabled in hPanel, it will restart automatically. Check https://lightslategrey-dove-787390.hostingersite.com/api/health"
+        run: echo "Deployed to Hostinger FTP. If Node.js app is enabled in hPanel, it will restart automatically. Check https://lightsalmon-hummingbird-788680.hostingersite.com/api/health"
