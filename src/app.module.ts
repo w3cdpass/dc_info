@@ -90,7 +90,14 @@ if (process.env.MCP_ENABLED === 'true') {
 // absent, so this stays inert and the Vite dev server (:2886) handles the UI. Opt out
 // explicitly with SERVE_DASHBOARD=false. The path + flags are exported so main.ts can
 // log a clear status line (served / disabled / build missing) at startup.
-export const DASHBOARD_DIST = path.resolve(__dirname, '..', 'dashboard', 'dist');
+const dashboardDistCandidates = [
+  path.resolve(__dirname, '..', 'dashboard', 'dist'),
+  // Hostinger's Node build may copy only the compiled dist tree into hbuilds/current/nodejs.
+  // Keeping the dashboard inside dist makes the SPA available in that layout too.
+  path.resolve(__dirname, 'dashboard'),
+];
+export const DASHBOARD_DIST =
+  dashboardDistCandidates.find(candidate => fs.existsSync(path.join(candidate, 'index.html'))) || dashboardDistCandidates[0];
 export const dashboardServingEnabled = process.env.SERVE_DASHBOARD !== 'false';
 export const dashboardBuildPresent = fs.existsSync(path.join(DASHBOARD_DIST, 'index.html'));
 
